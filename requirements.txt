@@ -1,0 +1,8 @@
+gspread
+oauth2client
+pandas
+xlsxwriter
+requests
+urlib3
+tabulate
+selenium
