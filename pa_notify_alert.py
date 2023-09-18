@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly Polls Purpleair api for outdoor sensor data and sends email notofications when air quality exceeds threshold.
-# James S. Lucas - 20230913
+# James S. Lucas - 20230916
 
 import sys
 import requests
@@ -19,6 +19,7 @@ import constants
 from configparser import ConfigParser
 from urllib3.exceptions import ReadTimeoutError
 from google.auth.exceptions import TransportError
+import ezgmail
 
 # Read config file
 config = ConfigParser()
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 # set log level
 logger.setLevel(logging.WARNING)
 # define file handler and set formatter
-file_handler = logging.FileHandler('pa_log_data_error.log')
+file_handler = logging.FileHandler('pa_notify_alert_error.log')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
 file_handler.setFormatter(formatter)
 # add file handler to logger
@@ -47,6 +48,14 @@ if PURPLEAIR_READ_KEY == '':
 session.headers.update({'X-API-Key': PURPLEAIR_READ_KEY})
 session.mount('http://', adapter)
 session.mount('https://', adapter)
+
+
+GMAIL_API_CREDENTIALS = config.get('google', 'GMAIL_API_CREDENTIAL_JSON_PATH')
+EZGMAIL_API_TOKEN = config.get('google', 'EZGMAIL_API_TOKEN_JSON_PATH')
+ezgmail.init(tokenFile=EZGMAIL_API_TOKEN, credentialsFile=GMAIL_API_CREDENTIALS)
+
+previous_timestamp = None
+previous_aqi_value = None
 
 
 def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
@@ -84,14 +93,13 @@ def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
     return decorator
 
 
-def status_update(local_et, regional_et, process_et):
+def status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confidence, local_10minute_aqi, rate_of_change):
     """
     A function that calculates the time remaining for each interval and prints it in a table format.
 
     Args:
         local_et (int): The elapsed time for the local interval in seconds.
         regional_et (int): The elapsed time for the regional interval in seconds.
-        process_et (int): The elapsed time for the process interval in seconds.
 
     Returns:
         A datetime object representing the current time.
@@ -100,26 +108,28 @@ def status_update(local_et, regional_et, process_et):
     local_seconds = int((constants.LOCAL_INTERVAL_DURATION - local_et) % 60)
     regional_minutes = int((constants.REGIONAL_INTERVAL_DURATION - regional_et) / 60)
     regional_seconds = int((constants.REGIONAL_INTERVAL_DURATION - regional_et) % 60)
-    process_minutes = int((constants.PROCESS_INTERVAL_DURATION - process_et) / 60)
-    process_seconds = int((constants.PROCESS_INTERVAL_DURATION - process_et) % 60)
+    time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     table_data = [
         ['Local:', f"{local_minutes:02d}:{local_seconds:02d}"],
         ['Regional:', f"{regional_minutes:02d}:{regional_seconds:02d}"],
-        ['Process:', f"{process_minutes:02d}:{process_seconds:02d}"]
+        ['Timestamp:', time_stamp],
+        ['PM 2.5 AQI:', local_pm25_aqi],
+        ['Confidence:', confidence],
+        ['PM 2.5 AQI Rate of Change:', rate_of_change],
+        ['PM 2.5 AQI 10 Minute Average:', local_10minute_aqi]
     ]
     print(tabulate(table_data, headers=['Interval', 'Time Remaining (MM:SS)'], tablefmt='orgtbl'))
     print("\033c", end="")
     return datetime.now()
 
 
-def elapsed_time(local_start, regional_start, process_start, status_start):
+def elapsed_time(local_start, regional_start, status_start):
     """
     Calculates the elapsed time for each interval since the start time.
 
     Args:
         local_start (datetime): The start time for the local interval.
         regional_start (datetime): The start time for the regional interval.
-        process_start (datetime): The start time for the process interval.
         status_start (datetime): The start time for the status interval.
 
     Returns:
@@ -127,12 +137,65 @@ def elapsed_time(local_start, regional_start, process_start, status_start):
     """
     local_et: int = (datetime.now() - local_start).total_seconds()
     regional_et: int = (datetime.now() - regional_start).total_seconds()
-    process_et: int = (datetime.now() - process_start).total_seconds()
     status_et: int = (datetime.now() - status_start).total_seconds()
-    return local_et, regional_et, process_et, status_et
+    return local_et, regional_et, status_et
 
 
-def get_pa_data(previous_time, bbox: List[float]) -> pd.DataFrame:
+def get_local_pa_data(sensor_id) -> float:
+    """
+    A function that queries the PurpleAir API for sensor data for a given sensor.
+
+    Args:
+        sensor_id (float): The id of a sensor.
+
+    Returns:
+        local_aqi (float): The PM 2.5 AQI.
+        time_stamp (datetime): The timestamp of the data.
+        confidence (str): The confidence of the sensor data.
+    """
+    root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
+    params = {
+        'sensor_id': sensor_id,
+        'fields': "pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b,humidity,name,pm2.5_10minute"
+    }
+    url: str = root_url.format(**params)
+    try:
+        response = session.get(url)
+    except requests.exceptions.RequestException as e:
+        logger.exception(f'get_pa_data() error: {e}')
+        df = pd.DataFrame()
+        return 0
+    if response.ok:
+        url_data = response.content
+        json_data = json.loads(url_data)
+        df = pd.DataFrame.from_dict(json_data['sensor'], orient='index').T
+        pm25_atm_a = df['pm2.5_atm_a'].iloc[0]
+        pm25_atm_b = df['pm2.5_atm_b'].iloc[0]
+        pm25_cf1_a = df['pm2.5_cf_1_a'].iloc[0]
+        pm25_cf1_b = df['pm2.5_cf_1_b'].iloc[0]
+        pm25_10minute = df['stats'].iloc[0]['pm2.5_10minute']
+        humidity = df['humidity'].iloc[0]
+        # Calculate sensor confidence
+        pm_dif_pct = abs(pm25_atm_a - pm25_atm_b) / ((pm25_atm_a + pm25_atm_b + 1e-6) / 2)
+        pm_dif_abs = abs(df['pm2.5_atm_a'] - df['pm2.5_atm_b'])
+        if pm_dif_pct >= 0.7 or pm_dif_abs >= 5:
+            confidence = 'LOW'
+            pm_cf1 = max(pm25_cf1_a, pm25_cf1_b)
+        else:
+            confidence = 'GOOD'
+            pm_cf1 = (pm25_cf1_a + pm25_cf1_b) / 2
+        local_aqi = AQI.calculate(EPA.calculate(humidity, pm_cf1))  
+        local_10minute_aqi = AQI.calculate(pm25_10minute)
+    else:
+        local_aqi = 'ERROR'
+        confidence = 'ERROR'
+        local_10minute_aqi = 'ERROR'
+        logger.exception('get_pa_data() response not ok')
+    time_stamp = datetime.now()
+    return local_aqi, confidence, time_stamp, local_10minute_aqi
+
+
+def get_regional_pa_data(previous_time, bbox: List[float]) -> pd.DataFrame:
     """
     A function that queries the PurpleAir API for sensor data within a given bounding box and time frame.
 
@@ -215,180 +278,105 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-def notify():
-    #
-    pass
-    
 
-def current_process(df):
-    """
-    This function takes a pandas DataFrame as input, performs some processing on it and saves it as a Google Sheet.
-    The sheet will contain only the most recent data from each sensor
+def aqi_rate_of_change(timestamp, aqi_value):
+    global previous_timestamp, previous_aqi_value
     
-    Args:
-        df (pandas.DataFrame): The DataFrame to be processed.
-        
-    Returns:
-        df (pandas.DataFrame): The processed DataFrame.
+    if previous_timestamp is None or previous_aqi_value is None:
+        # First call, no previous data available
+        previous_timestamp = timestamp
+        previous_aqi_value = aqi_value
+        return 0
     
-    Notes:
-        - This function modifies the input DataFrame in place.
-        - The following columns are added to the DataFrame:
-            - Ipm25 (AQI)
-            - pm25_epa
-            - time_stamp_pacific
-        - Data is cleaned according to EPA criteria.
-    """
-    df['Ipm25'] = df.apply(
-        lambda x: AQI.calculate(x['pm2.5_atm_a'], x['pm2.5_atm_b']),
-        axis=1
-        )
-    df['pm25_epa'] = df.apply(
-                lambda x: EPA.calculate(x['humidity'], x['pm2.5_cf_1_a'], x['pm2.5_cf_1_b']),
-                axis=1
-                )
-    df['time_stamp'] = pd.to_datetime(
-        df['time_stamp'],
-        format='%m/%d/%Y %H:%M:%S'
+    time_delta = (timestamp - previous_timestamp).total_seconds() / 60
+    aqi_delta = aqi_value - previous_aqi_value
+    aqi_rate_of_change = round(aqi_delta / time_delta, 2)
+    
+    # Remember current values for next call
+    previous_timestamp = timestamp
+    previous_aqi_value = aqi_value
+    
+    return aqi_rate_of_change
+
+
+def notify(recipient_list, subject, body_intro, pa_map_link, local_time_stamp, local_pm25_aqi, local_10minute_aqi, confidence, rate_of_change, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
+    if rate_of_change < 0:
+        rate_of_change_text = f'Air quality has decreased by {abs(rate_of_change)} AQI points per minute since the previous reading'
+    elif rate_of_change > 0:
+        rate_of_change_text = f'Air quality has increased by {abs(rate_of_change)} AQI points per minute since the previous reading'
+    else:
+        rate_of_change_text = f'Air quality has not changed since the previous reading'
+    email_body = (
+                f'{body_intro} <br><br>'
+                f'Air quality information as of {local_time_stamp} <br>'
+                f'PM 2.5 AQI: {local_pm25_aqi} <br>'
+                f'PM 2.5 AQI 10 Minute Average: {local_10minute_aqi} <br>' 
+                f'{rate_of_change_text} <br>'
+                f'{pa_map_link} <br><br>'
+                f'{disclaimer_pt1} <br>'
+                f'{disclaimer_pt2} <br>'
+                f'{disclaimer_pt3} <br>'
     )
-    df['time_stamp_pacific'] = df['time_stamp'].dt.tz_localize('UTC').dt.tz_convert('US/Pacific')
-    df['time_stamp'] = df['time_stamp'].dt.strftime('%m/%d/%Y %H:%M:%S')
-    df['time_stamp_pacific'] = df['time_stamp_pacific'].dt.strftime('%m/%d/%Y %H:%M:%S')
-    df = clean_data(df)
-    df = format_data(df)
-    return df
+    for recipient in recipient_list:
+        ezgmail.send(recipient, subject, email_body, mimeSubtype='html')
 
 
-def process_data(DOCUMENT_NAME, client):
-    """
-    Process data from Google Sheets sheets for each region. Data is cleaned, summarized and various values are calculated. Data are saved to
-    different worksheets in the same Google Sheets document.
-
-    Args:
-        DOCUMENT_NAME (str): The name of the Google Sheets document to be processed.
-        client: The Google Sheets client object.
-
-    Returns:
-        A cleaned and summarized pandas DataFrame with the following columns:
-        'time_stamp', 'sensor_index', 'name', 'latitude', 'longitude', 'altitude', 'rssi',
-        'uptime', 'humidity', 'temperature', 'pressure', 'voc', 'pm1.0_atm_a',
-        'pm1.0_atm_b', 'pm2.5_atm_a', 'pm2.5_atm_b', 'pm10.0_atm_a', 'pm10.0_atm_b',
-        'pm1.0_cf_1_a', 'pm1.0_cf_1_b', 'pm2.5_cf_1_a', 'pm2.5_cf_1_b', 'pm10.0_cf_1_a',
-        'pm10.0_cf_1_b', '0.3_um_count', '0.5_um_count', '1.0_um_count', '2.5_um_count',
-        '5.0_um_count', '10.0_um_count', 'pm25_epa', 'Ipm25'.
-    """
-    write_mode: str = 'update'
-    for k, v in constants.BBOX_DICT.items():
-        # open the Google Sheets input worksheet and read in the data
-        in_worksheet_name: str = k
-        out_worksheet_name: str = k + ' Proc'
-        df = get_gsheet_data(client, DOCUMENT_NAME, in_worksheet_name)
-        if constants.LOCAL_REGION == k:
-            # Save the dataframe for later use by the regional_stats() and sensor_health() functions
-            df_local = df.copy()
-        df['Ipm25'] = df.apply(
-            lambda x: AQI.calculate(x['pm2.5_atm_a'], x['pm2.5_atm_b']),
-            axis=1
-            )
-        df['pm25_epa'] = df.apply(
-                    lambda x: EPA.calculate(x['humidity'], x['pm2.5_cf_1_a'], x['pm2.5_cf_1_b']),
-                    axis=1
-                    )
-        df['time_stamp'] = pd.to_datetime(
-            df['time_stamp'],
-            format='%m/%d/%Y %H:%M:%S'
-            )
-        df = df.set_index('time_stamp')
-        df[constants.cols_6] = df[constants.cols_6].replace('', 0)
-        df[constants.cols_6] = df[constants.cols_6].astype(float)
-        df_summarized = df.groupby('name').resample(constants.PROCESS_RESAMPLE_RULE).mean(numeric_only=True)
-        df_summarized = df_summarized.reset_index()
-        df_summarized['time_stamp_pacific'] = df_summarized['time_stamp'].dt.tz_localize('UTC').dt.tz_convert('US/Pacific')
-        df_summarized['time_stamp'] = df_summarized['time_stamp'].dt.strftime('%m/%d/%Y %H:%M:%S')
-        df_summarized['time_stamp_pacific'] = df_summarized['time_stamp_pacific'].dt.strftime('%m/%d/%Y %H:%M:%S')
-        df_summarized['pm2.5_atm_a'] = pd.to_numeric(df_summarized['pm2.5_atm_a'], errors='coerce').astype(float)
-        df_summarized['pm2.5_atm_b'] = pd.to_numeric(df_summarized['pm2.5_atm_b'], errors='coerce').astype(float)
-        df_summarized = df_summarized.dropna(subset=['pm2.5_atm_a', 'pm2.5_atm_b'])
-        df_summarized.replace('', 0, inplace=True)
-        df_summarized = clean_data(df_summarized)
-        df_summarized = format_data(df_summarized)
-        write_data(df_summarized, client, DOCUMENT_NAME, out_worksheet_name, write_mode)
-        sleep(90)
-    return df_local
-
-
-def regional_stats(client, DOCUMENT_NAME):
-    """
-    Retrieves air quality data from a Google Sheets document and calculates the mean and maximum values for each region.
-
-    Args:
-        client (object): A client object used to access a Google Sheets API.
-        DOCUMENT_NAME (str): The name of the Google Sheets document to retrieve data from.
-
-    Returns:
-        None
-
-    This function retrieves air quality data from a Google Sheets document for each region specified in the BBOX_DICT dictionary.
-    It calculates the mean and maximum values for each region and writes the output to a specified worksheet in the same Google Sheets document.
-    """
-    write_mode: str = 'update'
-    out_worksheet_regional_name: str = 'Regional'
-    df_regional_stats = pd.DataFrame(columns=['Region', 'Mean', 'Max'])
-    for k, v in constants.BBOX_DICT.items():
-        worksheet_name = v[1] + ' Proc'
-        df = get_gsheet_data(client, DOCUMENT_NAME, worksheet_name)
-        if len(df) > 0:
-            df['Ipm25'] = pd.to_numeric(df['Ipm25'], errors='coerce')
-            df = df.dropna(subset=['Ipm25'])
-            df['Ipm25'] = df['Ipm25'].astype(float)
-            mean_value = df['Ipm25'].mean().round(2)
-            max_value = df['Ipm25'].max().round(2)
-            df_regional_stats.loc[len(df_regional_stats)] = [v[2], mean_value, max_value]
-            df = pd.DataFrame()
-            sleep(90)
-        write_data(df_regional_stats, client, DOCUMENT_NAME, out_worksheet_regional_name, write_mode)
+def notify_test(recipient_list, subject, body_intro, pa_map_link, local_time_stamp, local_pm25_aqi, local_10minute_aqi, confidence, rate_of_change, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
+    if rate_of_change < 0:
+        rate_of_change_text = f'Air quality has decreased by {abs(rate_of_change)} AQI points per minute since the previous reading'
+    elif rate_of_change > 0:
+        rate_of_change_text = f'Air quality has increased by {abs(rate_of_change)} AQI points per minute since the previous reading'
+    else:
+        rate_of_change_text = f'Air quality has not changed since the previous reading'
+    print()
+    print(f'Subject: {subject}')
+    print(f'To: {recipient_list[0]}')
+    print()
+    print(f'{body_intro}')
+    print()
+    print()
+    print(f'Air quality information as of {local_time_stamp}')
+    print(f'PM 2.5 AQI: {local_pm25_aqi}')
+    print(f'PM 2.5 AQI 10 Minute Average: {local_10minute_aqi}')
+    print(f'{rate_of_change_text}')
+    print(f'{pa_map_link}')
+    print()
+    print()
+    print(f'{disclaimer_pt1}')
+    print()
+    print(f'{disclaimer_pt2}')
+    print()
+    print(f'{disclaimer_pt3}')
+    print()
 
 
 def main():
     five_min_ago: datetime = datetime.now() - timedelta(minutes=5)
-    for k, v in constants.BBOX_DICT.items():
-        df = get_pa_data(five_min_ago, constants.BBOX_DICT.get(k)[0])
-        if len(df.index) > 0:
-            write_mode = 'append'
-            write_data(df, client, constants.DOCUMENT_NAME, constants.BBOX_DICT.get(k)[1], write_mode)
-        else:
-            pass
     local_start, regional_start, process_start, status_start = datetime.now(), datetime.now(), datetime.now(), datetime.now()
+    local_pm25_aqi = 0
+    confidence = ''
+    local_time_stamp = datetime.now()
+    local_10minute_aqi = 0
+    rate_of_change = 0
     while True:
         try:
             sleep(.1)
-            local_et, regional_et, process_et, status_et = elapsed_time(local_start, regional_start, process_start, status_start)
+            local_et, regional_et, status_et = elapsed_time(local_start, regional_start, status_start)
             if status_et >= constants.STATUS_INTERVAL_DURATION:
-                status_start = status_update(local_et, regional_et, process_et)
+                #status_start = status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confidence, local_10minute_aqi, rate_of_change)
+                status_start = datetime.now()
+                notify_test(constants.RECIPIENT_LIST, constants.SUBJECT, constants.BODY_INTRO, constants.PA_MAP_LINK, local_time_stamp, local_pm25_aqi, local_10minute_aqi, confidence, rate_of_change, constants.DISCLAIMER_PT1, constants.DISCLAIMER_PT2, constants.DISCLAIMER_PT3)
             if local_et >= constants.LOCAL_INTERVAL_DURATION:
-                df_local = get_pa_data(local_start, constants.BBOX_DICT.get(constants.LOCAL_REGION)[0])
-                if len (df_local.index) > 0:
-                    write_mode: str = 'append'
-                    write_data(df_local, client, constants.DOCUMENT_NAME, constants.LOCAL_WORKSHEET_NAME, write_mode)
-                    sleep(10)
-                    df_current = current_process(df_local)
-                    write_mode: str = 'update'
-                    write_data(df_current, client, constants.DOCUMENT_NAME, constants.CURRENT_WORKSHEET_NAME, write_mode)
+                local_pm25_aqi, confidence, local_time_stamp, local_10minute_aqi = get_local_pa_data(constants.LOCAL_SENSOR)
+                if local_pm25_aqi != 'ERROR':
+                    rate_of_change = aqi_rate_of_change(local_time_stamp, local_pm25_aqi)
                 local_start: datetime = datetime.now()
             if regional_et > constants.REGIONAL_INTERVAL_DURATION:
-                for regional_key in constants.REGIONAL_KEYS:
-                    df = get_pa_data(regional_start, constants.BBOX_DICT.get(regional_key)[0]) 
-                    if len(df.index) > 0:
-                        write_mode: str = 'append'
-                        write_data(df, client, constants.DOCUMENT_NAME, constants.BBOX_DICT.get(regional_key)[1], write_mode)
-                    sleep(10)
+                #for regional_key in constants.REGIONAL_KEYS:
+                    #df = get_pa_data(regional_start, constants.BBOX_DICT.get(regional_key)[0]) 
+                    #sleep(10)
                 regional_start: datetime = datetime.now()
-            if process_et > constants.PROCESS_INTERVAL_DURATION:
-                df = process_data(constants.DOCUMENT_NAME, client)
-                process_start: datetime = datetime.now()
-                if len(df.index) > 0:
-                    sensor_health(client, df, constants.DOCUMENT_NAME, constants.OUT_WORKSHEET_HEALTH_NAME)
-                    regional_stats(client, constants.DOCUMENT_NAME)
+
         except KeyboardInterrupt:
             sys.exit(0)
 
