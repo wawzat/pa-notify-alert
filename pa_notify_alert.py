@@ -58,42 +58,7 @@ previous_timestamp = None
 previous_aqi_value = None
 
 
-def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
-    """
-    A decorator function that retries a function call a specified number of times if it raises a specified exception.
-
-    Args:
-        max_attempts (int): The maximum number of attempts to retry the function call.
-        delay (int): The initial delay in seconds before the first retry.
-        escalation (int): The amount of time in seconds to increase the delay by for each subsequent retry.
-        exception (tuple): A tuple of exceptions to catch and retry on.
-
-    Returns:
-        The decorated function.
-
-    Raises:
-        The same exception that the decorated function raises if the maximum number of attempts is reached.
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except exception as e:
-                    adjusted_delay = delay + escalation * attempts
-                    attempts += 1
-                    logger.exception(f'Error in {func.__name__}(): attempt #{attempts} of {max_attempts}')
-                    if attempts < max_attempts:
-                        sleep(adjusted_delay)
-            logger.exception(f'Error in {func.__name__}: max of {max_attempts} attempts reached')
-            print(f'Error in {func.__name__}(): max of {max_attempts} attempts reached')
-            sys.exit(1)
-        return wrapper
-    return decorator
-
-
-def status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confidence, local_10minute_aqi, rate_of_change):
+def status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confidence, local_30minute_aqi, rate_of_change):
     """
     A function that calculates the time remaining for each interval and prints it in a table format.
 
@@ -116,7 +81,7 @@ def status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confi
         ['PM 2.5 AQI:', local_pm25_aqi],
         ['Confidence:', confidence],
         ['PM 2.5 AQI Rate of Change:', rate_of_change],
-        ['PM 2.5 AQI 10 Minute Average:', local_10minute_aqi]
+        ['PM 2.5 AQI 10 Minute Average:', local_30minute_aqi]
     ]
     print(tabulate(table_data, headers=['Interval', 'Time Remaining (MM:SS)'], tablefmt='orgtbl'))
     print("\033c", end="")
@@ -156,48 +121,49 @@ def get_local_pa_data(sensor_id) -> float:
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
         'sensor_id': sensor_id,
-        'fields': "pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b,humidity,name,pm2.5_10minute"
+        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b,pm2.5_30minute"
     }
     url: str = root_url.format(**params)
     try:
         response = session.get(url)
     except requests.exceptions.RequestException as e:
         logger.exception(f'get_pa_data() error: {e}')
-        df = pd.DataFrame()
         return 0
     if response.ok:
         url_data = response.content
         json_data = json.loads(url_data)
-        df = pd.DataFrame.from_dict(json_data['sensor'], orient='index').T
-        pm25_atm_a = df['pm2.5_atm_a'].iloc[0]
-        pm25_atm_b = df['pm2.5_atm_b'].iloc[0]
-        pm25_cf1_a = df['pm2.5_cf_1_a'].iloc[0]
-        pm25_cf1_b = df['pm2.5_cf_1_b'].iloc[0]
-        pm25_10minute = df['stats'].iloc[0]['pm2.5_10minute']
-        humidity = df['humidity'].iloc[0]
+        sensor_data = json_data['sensor']
+        sensor_name = sensor_data['name']
+        pm25_atm_a = sensor_data['pm2.5_atm_a']
+        pm25_atm_b = sensor_data['pm2.5_atm_b']
+        pm25_cf1_a = sensor_data['pm2.5_cf_1_a']
+        pm25_cf1_b = sensor_data['pm2.5_cf_1_b']
+        pm25_30minute = sensor_data['stats']['pm2.5_30minute']
+        humidity = sensor_data['humidity']
         # Calculate sensor confidence
         pm_dif_pct = abs(pm25_atm_a - pm25_atm_b) / ((pm25_atm_a + pm25_atm_b + 1e-6) / 2)
-        pm_dif_abs = abs(df['pm2.5_atm_a'] - df['pm2.5_atm_b'])
+        pm_dif_abs = abs(pm25_atm_a - pm25_atm_b)
         if pm_dif_pct >= 0.7 or pm_dif_abs >= 5:
             confidence = 'LOW'
             pm_cf1 = max(pm25_cf1_a, pm25_cf1_b)
         else:
             confidence = 'GOOD'
             pm_cf1 = (pm25_cf1_a + pm25_cf1_b) / 2
-        local_aqi = AQI.calculate(EPA.calculate(humidity, pm_cf1))  
-        local_10minute_aqi = AQI.calculate(pm25_10minute)
+        local_aqi = AQI.calculate(EPA.calculate(humidity, pm_cf1))
+        local_30minute_aqi = AQI.calculate(pm25_30minute)
     else:
         local_aqi = 'ERROR'
         confidence = 'ERROR'
-        local_10minute_aqi = 'ERROR'
+        sensor_name = 'ERROR'
+        local_30minute_aqi = 'ERROR'
         logger.exception('get_pa_data() response not ok')
     time_stamp = datetime.now()
-    return local_aqi, confidence, time_stamp, local_10minute_aqi
+    return sensor_id, sensor_name, local_aqi, confidence, time_stamp, local_30minute_aqi
 
 
 def get_regional_pa_data(previous_time, bbox: List[float]) -> pd.DataFrame:
     """
-    A function that queries the PurpleAir API for sensor data within a given bounding box and time frame.
+    A function that queries the PurpleAir API for outdoor sensor data within a given bounding box and time frame.
 
     Args:
         previous_time (datetime): A datetime object representing the time of the last query.
@@ -205,17 +171,12 @@ def get_regional_pa_data(previous_time, bbox: List[float]) -> pd.DataFrame:
             The order is [northwest longitude, southeast latitude, southeast longitude, northwest latitude].
 
     Returns:
-        A pandas DataFrame containing sensor data for the specified area and time frame. The DataFrame will contain columns
-        for the timestamp of the data, the index of the sensor, and various sensor measurements such as temperature,
-        humidity, and PM2.5 readings.
+        Ipm25 (float) - Float of the pseudo PM 2.5 AQI with EPA correction.
     """
     et_since = int((datetime.now() - previous_time + timedelta(seconds=20)).total_seconds())
     root_url: str = 'https://api.purpleair.com/v1/sensors/?fields={fields}&max_age={et}&location_type=0&nwlng={nwlng}&nwlat={nwlat}&selng={selng}&selat={selat}'
     params = {
-        'fields': "name,latitude,longitude,altitude,rssi,uptime,humidity,temperature,pressure,voc,"
-                "pm1.0_atm_a,pm1.0_atm_b,pm2.5_atm_a,pm2.5_atm_b,pm10.0_atm_a,pm10.0_atm_b,"
-                "pm1.0_cf_1_a,pm1.0_cf_1_b,pm2.5_cf_1_a,pm2.5_cf_1_b,pm10.0_cf_1_a,pm10.0_cf_1_b,"
-                "0.3_um_count,0.5_um_count,1.0_um_count,2.5_um_count,5.0_um_count,10.0_um_count",
+        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b",
         'nwlng': bbox[0],
         'selat': bbox[1],
         'selng': bbox[2],
@@ -223,6 +184,7 @@ def get_regional_pa_data(previous_time, bbox: List[float]) -> pd.DataFrame:
         'et': et_since
     }
     url: str = root_url.format(**params)
+    print(url)
     cols: List[str] = ['time_stamp', 'sensor_index'] + [col for col in params['fields'].split(',')]
     try:
         response = session.get(url)
@@ -236,14 +198,21 @@ def get_regional_pa_data(previous_time, bbox: List[float]) -> pd.DataFrame:
         df = pd.DataFrame(json_data['data'], columns=json_data['fields'])
         df = df.fillna('')
         df['time_stamp'] = datetime.now().strftime('%m/%d/%Y %H:%M:%S')
-        # convert the lat and lon values to strings
-        df['latitude'] = df['latitude'].astype(str)
-        df['longitude'] = df['longitude'].astype(str)
         df = df[cols]
+        df = clean_data(df)
+        df['pm25_epa'] = df.apply(
+                    lambda x: EPA.calculate(x['humidity'], x['pm2.5_cf_1_a'], x['pm2.5_cf_1_b']),
+                    axis=1
+                    )        
+        df['Ipm25'] = df.apply(
+            lambda x: AQI.calculate(x['pm2.5_atm_a'], x['pm2.5_atm_b']),
+            axis=1
+            )
+        mean_ipm25 = df['Ipm25'].mean()
     else:
         df = pd.DataFrame()
         logger.exception('get_pa_data() response not ok')
-    return df
+    return round(mean_ipm25, 1) 
 
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -299,46 +268,68 @@ def aqi_rate_of_change(timestamp, aqi_value):
     return aqi_rate_of_change
 
 
-def notify(recipient_list, subject, body_intro, pa_map_link, local_time_stamp, local_pm25_aqi, local_10minute_aqi, confidence, rate_of_change, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
+def notification_check():
+    pass
+
+
+
+def notify(recipient_list, subject, body_intro, pa_map_link, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_30minute_aqi, confidence, rate_of_change, regional_aqi_mean, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
     if rate_of_change < 0:
         rate_of_change_text = f'Air quality has decreased by {abs(rate_of_change)} AQI points per minute since the previous reading'
     elif rate_of_change > 0:
         rate_of_change_text = f'Air quality has increased by {abs(rate_of_change)} AQI points per minute since the previous reading'
     else:
         rate_of_change_text = f'Air quality has not changed since the previous reading'
+    if confidence == 'LOW':
+        confidence_text = 'Sensor accuracy is low, the sensor may need cleaning. Please obtain accurate data through official sources.'
+    else:
+        confidence_text = ''
+    local_time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     email_body = (
-                f'{body_intro} <br><br>'
-                f'Air quality information as of {local_time_stamp} <br>'
+                f'{body_intro} <br>'
+                f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp} <br>'
                 f'PM 2.5 AQI: {local_pm25_aqi} <br>'
-                f'PM 2.5 AQI 10 Minute Average: {local_10minute_aqi} <br>' 
+                f'PM 2.5 AQI 30 Minute Average: {local_30minute_aqi} <br>' 
                 f'{rate_of_change_text} <br>'
+                f'Regional average PM 2.5 AQI: {regional_aqi_mean} <br>'
                 f'{pa_map_link} <br><br>'
-                f'{disclaimer_pt1} <br>'
+                f'{disclaimer_pt1} <br><br>'
+                f'{confidence_text}'
                 f'{disclaimer_pt2} <br>'
                 f'{disclaimer_pt3} <br>'
     )
     for recipient in recipient_list:
         ezgmail.send(recipient, subject, email_body, mimeSubtype='html')
+    notification_time_stamp = datetime.now()
+    with open('last_notification.txt', 'w') as f:
+        f.write(str(notification_time_stamp))
 
 
-def notify_test(recipient_list, subject, body_intro, pa_map_link, local_time_stamp, local_pm25_aqi, local_10minute_aqi, confidence, rate_of_change, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
+def notify_test(recipient_list, subject, body_intro, pa_map_link, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_30minute_aqi, confidence, rate_of_change, regional_aqi_mean, elapsed_time, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
     if rate_of_change < 0:
         rate_of_change_text = f'Air quality has decreased by {abs(rate_of_change)} AQI points per minute since the previous reading'
     elif rate_of_change > 0:
         rate_of_change_text = f'Air quality has increased by {abs(rate_of_change)} AQI points per minute since the previous reading'
     else:
         rate_of_change_text = f'Air quality has not changed since the previous reading'
+    if confidence == 'LOW':
+        confidence_text = 'Sensor accuracy is low, the sensor may need cleaning. Please obtain accurate data through official sources.'
+    else:
+        confidence_text = ''
+    local_time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     print()
     print(f'Subject: {subject}')
     print(f'To: {recipient_list[0]}')
     print()
     print(f'{body_intro}')
     print()
-    print()
-    print(f'Air quality information as of {local_time_stamp}')
+    print(f'Air quality information for PurpleAir Sensor "{sensor_id} - {sensor_name}" as of {local_time_stamp}')
     print(f'PM 2.5 AQI: {local_pm25_aqi}')
-    print(f'PM 2.5 AQI 10 Minute Average: {local_10minute_aqi}')
+    print(f'PM 2.5 AQI 30 Minute Average: {local_30minute_aqi}')
     print(f'{rate_of_change_text}')
+    print(f'{confidence_text}')
+    print(f'Regional average PM 2.5 AQI: {regional_aqi_mean}')
+    print(f"Elapsed time since last notification: {int(elapsed_time.total_seconds())} seconds")
     print(f'{pa_map_link}')
     print()
     print()
@@ -348,28 +339,43 @@ def notify_test(recipient_list, subject, body_intro, pa_map_link, local_time_sta
     print()
     print(f'{disclaimer_pt3}')
     print()
+    notification_time_stamp = datetime.now()
+    with open('last_notification.txt', 'w') as f:
+        f.write(str(notification_time_stamp))
 
 
 def main():
     five_min_ago: datetime = datetime.now() - timedelta(minutes=5)
     local_start, regional_start, process_start, status_start = datetime.now(), datetime.now(), datetime.now(), datetime.now()
+    sensor_id = ''
+    sensor_name = ''
     local_pm25_aqi = 0
     confidence = ''
     local_time_stamp = datetime.now()
-    local_10minute_aqi = 0
+    local_30minute_aqi = 0
     rate_of_change = 0
+    regional_aqi_mean = 0
+    notification_elapsed_time = 0
     while True:
         try:
             sleep(.1)
             local_et, regional_et, status_et = elapsed_time(local_start, regional_start, status_start)
             if status_et >= constants.STATUS_INTERVAL_DURATION:
-                #status_start = status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confidence, local_10minute_aqi, rate_of_change)
+                #status_start = status_update(local_et, regional_et, local_time_stamp, local_pm25_aqi, confidence, local_30minute_aqi, rate_of_change)
+                with open('last_notification.txt', 'r') as f:
+                    last_notification_str = f.read().strip()
+                last_notification = datetime.strptime(last_notification_str, '%Y-%m-%d %H:%M:%S.%f')
+                # Calculate the elapsed time since the last notification
+                notification_elapsed_time = datetime.now() - last_notification
+                notify_test(constants.RECIPIENT_LIST, constants.SUBJECT, constants.BODY_INTRO, constants.PA_MAP_LINK, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_30minute_aqi, confidence, rate_of_change, regional_aqi_mean, notification_elapsed_time, constants.DISCLAIMER_PT1, constants.DISCLAIMER_PT2, constants.DISCLAIMER_PT3)
+                # Read the last notification timestamp from file
                 status_start = datetime.now()
-                notify_test(constants.RECIPIENT_LIST, constants.SUBJECT, constants.BODY_INTRO, constants.PA_MAP_LINK, local_time_stamp, local_pm25_aqi, local_10minute_aqi, confidence, rate_of_change, constants.DISCLAIMER_PT1, constants.DISCLAIMER_PT2, constants.DISCLAIMER_PT3)
             if local_et >= constants.LOCAL_INTERVAL_DURATION:
-                local_pm25_aqi, confidence, local_time_stamp, local_10minute_aqi = get_local_pa_data(constants.LOCAL_SENSOR)
+                sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, local_30minute_aqi = get_local_pa_data(constants.LOCAL_SENSOR)
                 if local_pm25_aqi != 'ERROR':
                     rate_of_change = aqi_rate_of_change(local_time_stamp, local_pm25_aqi)
+                #sleep(20)
+                #egional_aqi_mean = get_regional_pa_data(local_start, constants.BBOX_DICT.get(constants.LOCAL_REGION)[0])
                 local_start: datetime = datetime.now()
             if regional_et > constants.REGIONAL_INTERVAL_DURATION:
                 #for regional_key in constants.REGIONAL_KEYS:
