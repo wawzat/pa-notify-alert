@@ -553,6 +553,10 @@ def com_lists():
         email_list (list): A list of email addresses.
         text_list (list): A list of phone numbers.
     """
+    admin_text_list = []
+    admin_text_items = config.items('admin_text_numbers')
+    for key, path in admin_text_items:
+        admin_text_list.append(path)
     if constants.TEST_MODE == False:
         email_list = []
         email_items = config.items('email_addresses')
@@ -562,10 +566,6 @@ def com_lists():
         text_items = config.items('text_numbers')
         for key, path in text_items:
             text_list.append(path)
-        admin_text_list = []
-        admin_text_items = config.items('admin_text_numbers')
-        for key, path in admin_text_items:
-            admin_text_list.append(path)
     else:
         email_list = []
         email_items = config.items('admin_email_addresses')
