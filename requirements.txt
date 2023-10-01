@@ -2,7 +2,7 @@ pandas
 numpy
 pytz
 requests
-urlib3
+urllib3
 tabulate
 ezgmail
 twilio
