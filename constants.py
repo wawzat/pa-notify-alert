@@ -1,4 +1,4 @@
-TEST_MODE = False
+TEST_MODE = True
 
 REPORTING_TIME_ZONE = 'America/Los_Angeles'
 
