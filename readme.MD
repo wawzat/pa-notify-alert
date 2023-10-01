@@ -1,5 +1,5 @@
 # pa_notify_alert.py
-## Python program for ending email notifications about air quality as measured by PurpleAir sensors..
+## Python program for sending notifications about air quality as measured by PurpleAir sensors..
   
  
 ### Notes:
