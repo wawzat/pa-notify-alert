@@ -11,7 +11,6 @@ import json
 import pandas as pd
 import numpy as np
 import math
-from oauth2client.service_account import ServiceAccountCredentials
 import datetime
 from time import sleep
 import pytz
@@ -216,15 +215,13 @@ def read_timestamp(com_mode):
 
 def get_local_pa_data(sensor_id) -> float:
     """
-    A function that queries the PurpleAir API for sensor data for a given sensor.
+    Retrieves data from a PurpleAir sensor with the given sensor ID and calculates the local AQI.
 
     Args:
-        sensor_id (float): The id of a sensor.
+        sensor_id (int): The ID of the PurpleAir sensor to retrieve data from.
 
     Returns:
-        local_aqi (float): The PM 2.5 AQI.
-        time_stamp (datetime): The timestamp of the data.
-        confidence (str): The confidence of the sensor data.
+        tuple: A tuple containing the sensor ID, sensor name, local AQI, confidence level, and timestamp of the data retrieval.
     """
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
@@ -498,42 +495,6 @@ def email_notify(
     return utc_now.replace(tzinfo=pytz.utc)
 
 
-def email_notify_test(email_list, subject, body_intro, pa_map_link, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean, disclaimer_pt1, disclaimer_pt2, disclaimer_pt3):
-    if pm_aqi_roc < 0:
-        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc)} AQI points per minute since the previous reading'
-    elif pm_aqi_roc > 0:
-        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc)} AQI points per minute since the previous reading'
-    else:
-        rate_of_change_text = f'Air quality has not changed since the previous reading'
-    if confidence == 'LOW':
-        confidence_text = 'Sensor accuracy is low, the sensor may need cleaning. Please obtain accurate data through official sources.'
-    else:
-        confidence_text = ''
-    local_time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S %Z')
-    print()
-    print(f'Subject: {subject}')
-    print(f'To: {email_list[0]}')
-    print()
-    print(f'{body_intro}')
-    print()
-    print(f'Air quality information for PurpleAir Sensor "{sensor_id} - {sensor_name}" as of {local_time_stamp}')
-    print(f'PM 2.5 AQI: {local_pm25_aqi}')
-    print(f'PM 2.5 AQI {local_pm25_aqi_avg_duration} minute average: {local_pm25_aqi_avg}')
-    print(f'{rate_of_change_text}')
-    print(f'{confidence_text}')
-    print(f'Regional average PM 2.5 AQI: {regional_aqi_mean}')
-    print(f'{pa_map_link}')
-    print()
-    print()
-    print(f'{disclaimer_pt1}')
-    print()
-    print(f'{disclaimer_pt2}')
-    print()
-    print(f'{disclaimer_pt3}')
-    print()
-    write_timestamp(datetime.datetime.now(), 'email')
-
-
 def polling_criteria_met(polling_et):
     """
     Determines if the polling criteria has been met based on the current time and the polling interval.
@@ -577,7 +538,8 @@ def daily_notification_criteria_met(daily_text_notification):
         bool: True if the daily notification criteria are met, False otherwise.
     """
     utc_now = datetime.datetime.now(datetime.timezone.utc)
-    return utc_now - daily_text_notification >= datetime.timedelta(hours=24)
+    return utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.ALERT_START_TIME
 
 
 def com_lists():
@@ -600,6 +562,10 @@ def com_lists():
         text_items = config.items('text_numbers')
         for key, path in text_items:
             text_list.append(path)
+        admin_text_list = []
+        admin_text_items = config.items('admin_text_numbers')
+        for key, path in admin_text_items:
+            admin_text_list.append(path)
     else:
         email_list = []
         email_items = config.items('admin_email_addresses')
@@ -609,15 +575,15 @@ def com_lists():
         text_items = config.items('admin_text_numbers')
         for key, path in text_items:
             text_list.append(path)
-    return email_list, text_list
+    return email_list, text_list, admin_text_list
 
 
-def main():
+def initialize():
     bbox = [] 
     bbox_items = config.items('bbox')
     for key, path in bbox_items:
         bbox.append(path)
-    email_list, text_list = com_lists()
+    email_list, text_list, admin_text_list = com_lists()
     status_start, polling_start =  datetime.datetime.now(), datetime.datetime.now()
     sensor_id = ''
     sensor_name = ''
@@ -633,6 +599,11 @@ def main():
     last_email_notification = read_timestamp('email')
     utc_now = datetime.datetime.utcnow()
     daily_text_notification = utc_now.replace(tzinfo=pytz.utc)
+    return bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, daily_text_notification
+
+
+def main():
+    bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, daily_text_notification = initialize()
     while True:
         try:
             sleep(.1)
@@ -658,12 +629,8 @@ def main():
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
             if daily_notification_criteria_met(daily_text_notification) == True:
-                text_list = []
-                text_items = config.items('admin_text_numbers')
-                for key, path in text_items:
-                    text_list.append(path)
-                if len(text_list) > 0:
-                    daily_text_notification = text_notify('Daily Notification \n', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                if len(admin_text_list) > 0:
+                    daily_text_notification = text_notify('Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
 
         except KeyboardInterrupt:
             sys.exit(0)
