@@ -1,8 +1,9 @@
-gspread
-oauth2client
 pandas
-xlsxwriter
+numpy
+pytz
 requests
 urlib3
 tabulate
-selenium
+ezgmail
+twilio
+tzdata
