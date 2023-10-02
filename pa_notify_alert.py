@@ -370,7 +370,7 @@ def aqi_rate_of_change(data_points):
 
 
 @retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
-def text_notify(first_line, sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean):
+def text_notify(is_daily, first_line, sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean):
     """
     Sends a text notification to a list of recipients with information about air quality readings from a PurpleAir sensor.
 
@@ -428,7 +428,8 @@ def text_notify(first_line, sensor_id, sensor_name, text_list, local_time_stamp,
         with open(os.path.join(os.getcwd(), '1_text_status.log'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
-    write_timestamp(utc_now, 'text')
+    if is_daily == False:
+        write_timestamp(utc_now, 'text')
     return utc_now.replace(tzinfo=pytz.utc)
 
 
@@ -475,16 +476,16 @@ def email_notify(
     local_time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     email_body = (
                 f'{constants.EMAIL_BODY_INTRO} <br>'
-                f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp} <br>'
+                f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp} <br> <br>'
                 f'PM 2.5 AQI: {local_pm25_aqi} <br>'
                 f'PM 2.5 AQI {local_pm25_aqi_avg_duration:.0f} minute average: {local_pm25_aqi_avg:.0f} <br>'
                 f'{rate_of_change_text} <br>'
                 f'{confidence_text}'
                 f'Regional average PM 2.5 AQI: {regional_aqi_mean:.0f} <br>'
                 f'{constants.PA_MAP_EMAIL_LINK} <br><br>'
-                f'{constants.EMAIL_DISCLAIMER_PT1} <br>'
-                f'{constants.EMAIL_DISCLAIMER_PT2} <br>'
-                f'{constants.EMAIL_DISCLAIMER_PT3} <br>'
+                f'{constants.EMAIL_DISCLAIMER_PT1} <br> <br>'
+                f'{constants.EMAIL_DISCLAIMER_PT2} <br> <br>'
+                f'{constants.EMAIL_DISCLAIMER_PT3}'
     )
     for recipient in email_list:
         ezgmail.send(recipient, constants.SUBJECT, email_body, mimeSubtype='html')
@@ -621,17 +622,17 @@ def main():
                     local_pm25_aqi_avg_duration = (len(local_pm25_aqi_list) -1) * (constants.POLLING_INTERVAL/60)
                 regional_aqi_mean = get_regional_pa_data(bbox)
                 polling_start: datetime = datetime.datetime.now()
-                #if notification_criteria_met(local_pm25_aqi, len(local_pm25_aqi_list)) == True:
+                #if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list)) == True:
                 if notification_criteria_met(141, regional_aqi_mean, len(local_pm25_aqi_list)) == True:
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
-                        last_text_notification = text_notify('', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                        last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_email_notification = email_notify(email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
             if daily_notification_criteria_met(daily_text_notification) == True:
                 if len(admin_text_list) > 0:
-                    daily_text_notification = text_notify('Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                    daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
 
         except KeyboardInterrupt:
             sys.exit(0)
