@@ -398,7 +398,7 @@ def text_notify(is_daily, first_line, sensor_id, sensor_name, text_list, local_t
                 f'{first_line}'
                 f'AQ Notification \n'
                 f'PA {sensor_id} - {sensor_name} \n'
-                f'Time: {local_time_stamp} \n \n'
+                f'Time: {local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")} \n \n'
                 f'PM 2.5 Based Readings: \n'
                 f' AQI: {local_pm25_aqi} \n'
                 f' {rate_of_change_text} \n'
@@ -476,7 +476,7 @@ def email_notify(
     local_time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     email_body = (
                 f'{constants.EMAIL_BODY_INTRO} <br>'
-                f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp} <br> <br>'
+                f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")} <br> <br>'
                 f'PM 2.5 AQI: {local_pm25_aqi} <br>'
                 f'PM 2.5 AQI {local_pm25_aqi_avg_duration:.0f} minute average: {local_pm25_aqi_avg:.0f} <br>'
                 f'{rate_of_change_text} <br>'
