@@ -173,16 +173,21 @@ def write_timestamp(time_stamp, com_mode):
     Returns:
         None
     """
-    if com_mode == 'email':
-        file_path = 'last_email_notification.txt'
-    elif com_mode == 'text':
-        file_path = 'last_text_notification.txt'
+    file_paths = {
+        'email': 'last_email_notification.txt',
+        'text': 'last_text_notification.txt',
+        'daily_text': 'last_daily_text_notification.txt'
+    }
+    try:
+        file_path = file_paths[com_mode]
+    except KeyError:
+        logger.exception(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
+        print(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
+        sys.exit(1)
     # Store the UTC datetime in a text file
     with open(file_path, 'w') as file:
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
-
-import datetime
 
 def read_timestamp(com_mode):
     """
@@ -198,13 +203,17 @@ def read_timestamp(com_mode):
         FileNotFoundError: If the file for the specified communication mode is not found.
         ValueError: If the datetime string in the file is not in a valid format.
     """
-    if com_mode == 'email':
-        file_path = 'last_email_notification.txt'
-    elif com_mode == 'text':
-        file_path = 'last_text_notification.txt'
-    else:
-        raise ValueError("Invalid communication mode. Must be 'email' or 'text'.")
-        
+    file_paths = {
+        'email': 'last_email_notification.txt',
+        'text': 'last_text_notification.txt',
+        'daily_text': 'last_daily_text_notification.txt'
+    }
+    try:
+        file_path = file_paths[com_mode]
+    except KeyError:
+        logger.exception(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
+        print(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
+        sys.exit(1)
     # Read the datetime from the text file
     with open(file_path, 'r') as file:
         datetime_str = file.read()
@@ -370,7 +379,18 @@ def aqi_rate_of_change(data_points):
 
 
 @retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
-def text_notify(is_daily, first_line, sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean):
+def text_notify(is_daily: bool,
+                first_line: str,
+                sensor_id: int,
+                sensor_name: str,
+                text_list: List[str],
+                local_time_stamp: datetime,
+                local_pm25_aqi: float,
+                pm_aqi_roc: float,
+                local_pm25_aqi_avg: float,
+                local_pm25_aqi_avg_duration: int,
+                confidence: str,
+                regional_aqi_mean: float) -> datetime:
     """
     Sends a text notification to a list of recipients with information about air quality readings from a PurpleAir sensor.
 
@@ -407,7 +427,6 @@ def text_notify(is_daily, first_line, sensor_id, sensor_name, text_list, local_t
                 f' Regional avg AQI: {regional_aqi_mean:.0f} \n \n'
                 f'{constants.PA_MAP_TEXT_LINK} '
     )
-
     message_sid_dict = {}
     for recipient in text_list:
         status_dict = {}
@@ -428,15 +447,17 @@ def text_notify(is_daily, first_line, sensor_id, sensor_name, text_list, local_t
         with open(os.path.join(os.getcwd(), '1_text_status.log'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
-    if is_daily == False:
+    if is_daily == True:
+        write_timestamp(utc_now, 'daily_text')
+    else:
         write_timestamp(utc_now, 'text')
     return utc_now.replace(tzinfo=pytz.utc)
 
 
-@retry(max_attempts=6, delay=90, escalation=90, exception=(ezgmail.EZGmailException, ezgmail.EZGmailTypeError, ezgmail.EZGmailValueError))
+@retry(max_attempts=6, delay=90, escalation=90, exception=(Exception, ezgmail.EZGmailException, ezgmail.EZGmailTypeError, ezgmail.EZGmailValueError))
 def email_notify(
     email_list: List[str],
-    local_time_stamp: datetime.datetime,
+    local_time_stamp: datetime,
     sensor_id: str,
     sensor_name: str,
     local_pm25_aqi: float,
@@ -444,7 +465,7 @@ def email_notify(
     local_pm25_aqi_avg_duration: int,
     confidence: str,
     pm_aqi_roc: float,
-    regional_aqi_mean: float) -> datetime.datetime:
+    regional_aqi_mean: float) -> datetime:
     """
     Sends an email notification to a list of recipients with information about air quality data from a PurpleAir sensor.
 
@@ -473,7 +494,6 @@ def email_notify(
         confidence_text = 'Sensor accuracy is low, the sensor may need cleaning. Please obtain accurate data through official sources. <br>'
     else:
         confidence_text = ''
-    local_time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     email_body = (
                 f'{constants.EMAIL_BODY_INTRO} <br>'
                 f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")} <br> <br>'
@@ -599,13 +619,12 @@ def initialize():
     max_data_points = math.ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification = read_timestamp('text')
     last_email_notification = read_timestamp('email')
-    utc_now = datetime.datetime.utcnow()
-    daily_text_notification = utc_now.replace(tzinfo=pytz.utc)
-    return bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, daily_text_notification
+    last_daily_text_notification = read_timestamp('daily_text')
+    return bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification
 
 
 def main():
-    bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, daily_text_notification = initialize()
+    bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification = initialize()
     while True:
         try:
             sleep(.1)
@@ -630,9 +649,9 @@ def main():
                         last_email_notification = email_notify(email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
-            if daily_notification_criteria_met(daily_text_notification) == True:
+            if daily_notification_criteria_met(last_daily_text_notification) == True:
                 if len(admin_text_list) > 0:
-                    daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                    last_daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
 
         except KeyboardInterrupt:
             sys.exit(0)
