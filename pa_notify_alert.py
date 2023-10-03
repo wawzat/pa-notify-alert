@@ -216,7 +216,7 @@ def read_timestamp(com_mode):
         sys.exit(1)
     # Read the datetime from the text file
     with open(file_path, 'r') as file:
-        datetime_str = file.read()
+        datetime_str = file.read().strip()
     loaded_datetime = datetime.datetime.fromisoformat(datetime_str)
     loaded_datetime = loaded_datetime.replace(tzinfo=datetime.timezone.utc)
     return loaded_datetime
