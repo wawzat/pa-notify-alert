@@ -223,12 +223,17 @@ def read_timestamp(com_mode):
 
 
 def is_pdt():
-    # Determine if it is currently PDT or PST
+    """
+    Determines if it is currently Pacific Daylight Time (PDT) or Pacific Standard Time (PST).
+
+    Returns:
+        bool: True if it is currently PDT, False if it is currently PST.
+    """
     now = datetime.datetime.now(datetime.timezone.utc)
-    is_pdt = False
+    is_pdt_value = False
     if now.astimezone(datetime.timezone(datetime.timedelta(hours=-7))).dst() != datetime.timedelta(0):
-        is_pdt = True
-    return is_pdt
+        is_pdt_value = True
+    return is_pdt_value
 
 
 def get_local_pa_data(sensor_id) -> float:
@@ -539,10 +544,10 @@ def polling_criteria_met(polling_et):
     POLLING_START_TIME = constants.POLLING_START_TIME
     POLLING_END_TIME = constants.POLLING_END_TIME
 
-    is_pdt = is_pdt()
+    is_pdt_value = is_pdt()
     
     # Adjust time values for PST
-    if not is_pdt:
+    if not is_pdt_value:
         polling_start_time = datetime.datetime.strptime(POLLING_START_TIME, '%H:%M:%S')
         polling_start_time -= datetime.timedelta(hours=1)
         POLLING_START_TIME = polling_start_time.strftime('%H:%M:%S')
@@ -572,10 +577,10 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
     OPEN_ALERT_START_TIME = constants.OPEN_ALERT_START_TIME
     OPEN_ALERT_END_TIME = constants.OPEN_ALERT_END_TIME
 
-    is_pdt = is_pdt()
+    is_pdt_value = is_pdt()
 
     # Adjust time values for PST
-    if not is_pdt:
+    if not is_pdt_value:
         pre_open_alert_start_time = datetime.datetime.strptime(PRE_OPEN_ALERT_START_TIME, '%H:%M:%S')
         pre_open_alert_start_time -= datetime.timedelta(hours=1)
         PRE_OPEN_ALERT_START_TIME = pre_open_alert_start_time.strftime('%H:%M:%S')
@@ -614,9 +619,9 @@ def daily_notification_criteria_met(daily_text_notification):
     Returns:
         bool: True if the daily notification criteria are met, False otherwise.
     """
-    is_pdt = is_pdt()
+    is_pdt_value = is_pdt()
     # Adjust time values for PST
-    if not is_pdt:
+    if not is_pdt_value:
         daily_text_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     return utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
