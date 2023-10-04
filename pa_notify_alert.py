@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends email notofications when air quality exceeds threshold.
-# James S. Lucas - 20231001
+# James S. Lucas - 20231003
 
 import os
 import sys
@@ -220,6 +220,15 @@ def read_timestamp(com_mode):
     loaded_datetime = datetime.datetime.fromisoformat(datetime_str)
     loaded_datetime = loaded_datetime.replace(tzinfo=datetime.timezone.utc)
     return loaded_datetime
+
+
+def is_pdt():
+    # Determine if it is currently PDT or PST
+    now = datetime.datetime.now(datetime.timezone.utc)
+    is_pdt = False
+    if now.astimezone(datetime.timezone(datetime.timedelta(hours=-7))).dst() != datetime.timedelta(0):
+        is_pdt = True
+    return is_pdt
 
 
 def get_local_pa_data(sensor_id) -> float:
@@ -447,7 +456,7 @@ def text_notify(is_daily: bool,
         with open(os.path.join(os.getcwd(), '1_text_status.log'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
-    if is_daily == True:
+    if is_daily:
         write_timestamp(utc_now, 'daily_text')
     else:
         write_timestamp(utc_now, 'text')
@@ -527,9 +536,24 @@ def polling_criteria_met(polling_et):
     Returns:
         bool: True if the polling criteria has been met, False otherwise.
     """
+    POLLING_START_TIME = constants.POLLING_START_TIME
+    POLLING_END_TIME = constants.POLLING_END_TIME
+
+    is_pdt = is_pdt()
+    
+    # Adjust time values for PST
+    if not is_pdt:
+        polling_start_time = datetime.datetime.strptime(POLLING_START_TIME, '%H:%M:%S')
+        polling_start_time -= datetime.timedelta(hours=1)
+        POLLING_START_TIME = polling_start_time.strftime('%H:%M:%S')
+
+        polling_end_time = datetime.datetime.strptime(POLLING_END_TIME, '%H:%M:%S')
+        polling_end_time -= datetime.timedelta(hours=1)
+        POLLING_END_TIME = polling_end_time.strftime('%H:%M:%S')
+
     return polling_et >= constants.POLLING_INTERVAL, \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.POLLING_START_TIME and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') <= constants.POLLING_END_TIME
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= POLLING_START_TIME and \
+        datetime.datetime.utcnow().strftime('%H:%M:%S') <= POLLING_END_TIME
 
 
 def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points):
@@ -543,10 +567,41 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
     Returns:
         bool: True if the notification criteria are met, False otherwise.
     """
-    return datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.ALERT_START_TIME and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') <= constants.ALERT_END_TIME and \
-        (local_pm25_aqi >= constants.AQI_ALERT_THRESHOLD  or regional_aqi_mean >- constants.AQI_ALERT_THRESHOLD) and \
-        num_data_points >= 4
+    PRE_OPEN_ALERT_START_TIME = constants.PRE_OPEN_ALERT_START_TIME
+    PRE_OPEN_ALERT_END_TIME = constants.PRE_OPEN_ALERT_END_TIME
+    OPEN_ALERT_START_TIME = constants.OPEN_ALERT_START_TIME
+    OPEN_ALERT_END_TIME = constants.OPEN_ALERT_END_TIME
+
+    is_pdt = is_pdt()
+
+    # Adjust time values for PST
+    if not is_pdt:
+        pre_open_alert_start_time = datetime.datetime.strptime(PRE_OPEN_ALERT_START_TIME, '%H:%M:%S')
+        pre_open_alert_start_time -= datetime.timedelta(hours=1)
+        PRE_OPEN_ALERT_START_TIME = pre_open_alert_start_time.strftime('%H:%M:%S')
+
+        pre_open_alert_end_time = datetime.datetime.strptime(PRE_OPEN_ALERT_END_TIME, '%H:%M:%S')
+        pre_open_alert_end_time -= datetime.timedelta(hours=1)
+        PRE_OPEN_ALERT_END_TIME = pre_open_alert_end_time.strftime('%H:%M:%S')
+
+        open_alert_start_time = datetime.datetime.strptime(OPEN_ALERT_START_TIME, '%H:%M:%S')
+        open_alert_start_time -= datetime.timedelta(hours=1)
+        OPEN_ALERT_START_TIME = open_alert_start_time.strftime('%H:%M:%S')
+
+        open_alert_end_time = datetime.datetime.strptime(OPEN_ALERT_END_TIME, '%H:%M:%S')
+        open_alert_end_time -= datetime.timedelta(hours=1)
+        OPEN_ALERT_END_TIME = open_alert_end_time.strftime('%H:%M:%S')
+
+    pre_open_notification_criteria = (
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= PRE_OPEN_ALERT_START_TIME and \
+        datetime.datetime.utcnow().strftime('%H:%M:%S') <= PRE_OPEN_ALERT_END_TIME and \
+        (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >- constants.PRE_OPEN_AQI_ALERT_THRESHOLD))
+
+    open_notification_criteria = (
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= OPEN_ALERT_START_TIME and \
+        datetime.datetime.utcnow().strftime('%H:%M:%S') <= OPEN_ALERT_END_TIME and \
+        (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >- constants.OPEN_AQI_ALERT_THRESHOLD))
+    return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= 4
 
 
 def daily_notification_criteria_met(daily_text_notification):
@@ -559,9 +614,13 @@ def daily_notification_criteria_met(daily_text_notification):
     Returns:
         bool: True if the daily notification criteria are met, False otherwise.
     """
+    is_pdt = is_pdt()
+    # Adjust time values for PST
+    if not is_pdt:
+        daily_text_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     return utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.ALERT_START_TIME
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.PRE_OPEN_ALERT_START_TIME
 
 
 def com_lists():
@@ -574,12 +633,13 @@ def com_lists():
     Returns:
         email_list (list): A list of email addresses.
         text_list (list): A list of phone numbers.
+        admin_text_list (list): A list of phone numbers.
     """
     admin_text_list = []
     admin_text_items = config.items('admin_text_numbers')
     for key, path in admin_text_items:
         admin_text_list.append(path)
-    if constants.TEST_MODE == False:
+    if not constants.TEST_MODE:
         email_list = []
         email_items = config.items('email_addresses')
         for key, path in email_items:
@@ -641,15 +701,15 @@ def main():
                     local_pm25_aqi_avg_duration = (len(local_pm25_aqi_list) -1) * (constants.POLLING_INTERVAL/60)
                 regional_aqi_mean = get_regional_pa_data(bbox)
                 polling_start: datetime = datetime.datetime.now()
-                #if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list)) == True:
-                if notification_criteria_met(141, regional_aqi_mean, len(local_pm25_aqi_list)) == True:
+                #if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list)):
+                if notification_criteria_met(130, regional_aqi_mean, len(local_pm25_aqi_list)):
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_email_notification = email_notify(email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
-            if daily_notification_criteria_met(last_daily_text_notification) == True:
+            if daily_notification_criteria_met(last_daily_text_notification):
                 if len(admin_text_list) > 0:
                     last_daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
 
