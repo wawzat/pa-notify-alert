@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends email notofications when air quality exceeds threshold.
-# James S. Lucas - 20231003
+# James S. Lucas - 20231005
 
 import os
 import sys
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # set log level
 logger.setLevel(logging.WARNING)
 # define file handler and set formatter
-file_handler = logging.FileHandler('pa_notify_alert_error.log')
+file_handler = logging.FileHandler('pa_notify_alert_error_log.txt')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
 file_handler.setFormatter(formatter)
 # add file handler to logger
@@ -176,7 +176,8 @@ def write_timestamp(time_stamp, com_mode):
     file_paths = {
         'email': 'last_email_notification.txt',
         'text': 'last_text_notification.txt',
-        'daily_text': 'last_daily_text_notification.txt'
+        'daily_text': 'last_daily_text_notification.txt',
+        'daily_email': 'last_daily_email_notification.txt'
     }
     try:
         file_path = file_paths[com_mode]
@@ -206,7 +207,8 @@ def read_timestamp(com_mode):
     file_paths = {
         'email': 'last_email_notification.txt',
         'text': 'last_text_notification.txt',
-        'daily_text': 'last_daily_text_notification.txt'
+        'daily_text': 'last_daily_text_notification.txt',
+        'daily_email': 'last_daily_email_notification.txt'
     }
     try:
         file_path = file_paths[com_mode]
@@ -458,7 +460,7 @@ def text_notify(is_daily: bool,
         status_dict[recipient] = status
     for recipient, status in status_dict.items():
         log_text = f'{local_time_stamp}: {recipient} - {status}'
-        with open(os.path.join(os.getcwd(), '1_text_status.log'), 'a') as f:
+        with open(os.path.join(os.getcwd(), '1_text_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
     if is_daily:
@@ -470,6 +472,8 @@ def text_notify(is_daily: bool,
 
 @retry(max_attempts=6, delay=90, escalation=90, exception=(Exception, ezgmail.EZGmailException, ezgmail.EZGmailTypeError, ezgmail.EZGmailValueError))
 def email_notify(
+    is_daily: bool,
+    first_line: str,
     email_list: List[str],
     local_time_stamp: datetime,
     sensor_id: str,
@@ -498,6 +502,11 @@ def email_notify(
     Returns:
         datetime.datetime: The UTC timestamp of when the email was sent.
     """
+    attachment_list = []
+    if is_daily:
+        attachment_list.append('pa_notify_alert_error_log.txt')
+        attachment_list.append('1_text_status_log.txt')
+        attachment_list.append('1_email_status_log.txt')
     if pm_aqi_roc < 0:
         rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc)} AQI points per minute since the previous reading'
     elif pm_aqi_roc > 0:
@@ -509,6 +518,7 @@ def email_notify(
     else:
         confidence_text = ''
     email_body = (
+                f'{first_line}'
                 f'{constants.EMAIL_BODY_INTRO} <br>'
                 f'Air quality for PurpleAir Sensor "{sensor_id} - {sensor_name}" information as of {local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")} <br> <br>'
                 f'PM 2.5 AQI: {local_pm25_aqi} <br>'
@@ -522,12 +532,16 @@ def email_notify(
                 f'{constants.EMAIL_DISCLAIMER_PT3}'
     )
     for recipient in email_list:
-        ezgmail.send(recipient, constants.SUBJECT, email_body, mimeSubtype='html')
+        ezgmail.send(recipient, constants.SUBJECT, email_body, attachment_list, mimeSubtype='html')
         log_text = f'{local_time_stamp}: {recipient} - Sent'
-        with open(os.path.join(os.getcwd(), '1_email_status.log'), 'a') as f:
+        with open(os.path.join(os.getcwd(), '1_email_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
     write_timestamp(utc_now, 'email')
+    if is_daily:
+        write_timestamp(utc_now, 'daily_email')
+    else:
+        write_timestamp(utc_now, 'email')
     return utc_now.replace(tzinfo=pytz.utc)
 
 
@@ -609,7 +623,7 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
     return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= 4
 
 
-def daily_notification_criteria_met(daily_text_notification):
+def daily_notification_criteria_met(daily_text_notification, daily_email_notification):
     """
     Determines if the daily notification criteria are met based on the current time.
 
@@ -623,9 +637,13 @@ def daily_notification_criteria_met(daily_text_notification):
     # Adjust time values for PST
     if not is_pdt_value:
         daily_text_notification += datetime.timedelta(hours=1)
+        daily_email_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
-    return utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.PRE_OPEN_ALERT_START_TIME
+    text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.PRE_OPEN_ALERT_START_TIME - datetime.timedelta(minutes=30) 
+    email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.PRE_OPEN_ALERT_START_TIME - datetime.timedelta(minutes=30)
+    return text_criteria or email_criteria  
 
 
 def com_lists():
@@ -642,8 +660,12 @@ def com_lists():
     """
     admin_text_list = []
     admin_text_items = config.items('admin_text_numbers')
+    admin_email_list = []
+    admin_email_items = config.items('admin_email_addresses')
     for key, path in admin_text_items:
         admin_text_list.append(path)
+    for key, path in admin_email_items:
+        admin_email_list.append(path)
     if not constants.TEST_MODE:
         email_list = []
         email_items = config.items('email_addresses')
@@ -662,7 +684,7 @@ def com_lists():
         text_items = config.items('admin_text_numbers')
         for key, path in text_items:
             text_list.append(path)
-    return email_list, text_list, admin_text_list
+    return email_list, text_list, admin_text_list, admin_email_list
 
 
 def initialize():
@@ -670,7 +692,7 @@ def initialize():
     bbox_items = config.items('bbox')
     for key, path in bbox_items:
         bbox.append(path)
-    email_list, text_list, admin_text_list = com_lists()
+    email_list, text_list, admin_text_list, admin_email_list = com_lists()
     status_start, polling_start =  datetime.datetime.now(), datetime.datetime.now()
     sensor_id = ''
     sensor_name = ''
@@ -685,11 +707,12 @@ def initialize():
     last_text_notification = read_timestamp('text')
     last_email_notification = read_timestamp('email')
     last_daily_text_notification = read_timestamp('daily_text')
-    return bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification
+    last_daily_email_notification = read_timestamp('daily_email')
+    return bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification
 
 
 def main():
-    bbox, email_list, text_list, admin_text_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification = initialize()
+    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification = initialize()
     while True:
         try:
             sleep(.1)
@@ -711,12 +734,14 @@ def main():
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
-                        last_email_notification = email_notify(email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
+                        last_email_notification = email_notify(False, '', email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
-            if daily_notification_criteria_met(last_daily_text_notification):
+            if daily_notification_criteria_met(last_daily_text_notification, last_daily_email_notification):
                 if len(admin_text_list) > 0:
                     last_daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                if len(email_list) > 0:
+                    last_daily_email_notification = email_notify(True, 'Daily Notification <br>', admin_email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
 
         except KeyboardInterrupt:
             sys.exit(0)
