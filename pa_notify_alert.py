@@ -640,9 +640,9 @@ def daily_notification_criteria_met(daily_text_notification, daily_email_notific
         daily_email_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.PRE_OPEN_ALERT_START_TIME - datetime.timedelta(minutes=30) 
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
     email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= constants.PRE_OPEN_ALERT_START_TIME - datetime.timedelta(minutes=30)
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
     return text_criteria or email_criteria  
 
 
