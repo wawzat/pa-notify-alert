@@ -107,7 +107,7 @@ def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
 
 def status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, max_data_points, num_data_points):
     """
-    A function that calculates the time remaining for each interval and prints it in a table format.
+    A function that calculates the time remaining and other stats for each interval and prints it in a table format.
 
     Args:
         polling_et (int): The elapsed time for the polling interval in seconds.
@@ -146,14 +146,16 @@ def status_update(polling_et, text_notification_et, email_notification_et, local
 
 def elapsed_time(polling_start, status_start, last_text_notification, last_email_notification):
     """
-    Calculates the elapsed time for each interval since the start time.
+    Calculates the elapsed time in seconds since the given timestamps.
 
     Args:
-        polling_start (datetime): The start time for the local interval.
-        status_start (datetime): The start time for the status interval.
+        polling_start (datetime.datetime): The timestamp when the polling started.
+        status_start (datetime.datetime): The timestamp when the status started.
+        last_text_notification (datetime.datetime): The timestamp of the last text notification.
+        last_email_notification (datetime.datetime): The timestamp of the last email notification.
 
     Returns:
-        A tuple containing the elapsed time for each interval in seconds.
+        Tuple[int, int, int, int]: A tuple containing the elapsed time in seconds for polling, status, text notification, and email notification.
     """
     polling_et: int = (datetime.datetime.now() - polling_start).total_seconds()
     status_et: int = (datetime.datetime.now() - status_start).total_seconds()
