@@ -135,7 +135,7 @@ def status_update(polling_et,
     email_notification_seconds = int((constants.NOTIFICATION_INTERVAL - email_notification_et) % 60)
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     table_data = [
-        ['Polling:', f"{polling_minutes:02d}:{polling_seconds:02d}"],
+        ['Polling:', f'{polling_minutes:02d}:{polling_seconds:02d}'],
         ['Text Notification:', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d}'],
         ['Email Notification:', f'{email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
         ['Max Data Points:', f'{max_data_points}'],
@@ -143,11 +143,11 @@ def status_update(polling_et,
         ['Polling Start:', f'{constants.POLLING_START_TIME}'],
         ['Time Now:', f'{datetime.datetime.utcnow().strftime("%H:%M:%S")}'],
         ['Polling End:', f'{constants.POLLING_END_TIME}'],
-        ['Timestamp:', time_stamp],
-        ['PM 2.5 AQI:', local_pm25_aqi],
-        ['Regional AQI:', regional_aqi_mean],
-        ['Gan Sensor Confidence:', confidence],
-        ['PM 2.5 AQI Rate of Change:', pm_aqi_roc]
+        ['Timestamp:', f'{time_stamp}'],
+        ['PM 2.5 AQI:', f'{local_pm25_aqi:.0f}'],
+        ['Regional AQI:', f'{regional_aqi_mean:.0f}'],
+        ['Gan Sensor Confidence:', f'{confidence}'],
+        ['PM 2.5 AQI Rate of Change:', f'{pm_aqi_roc:.5f}']
     ]
     print(tabulate(table_data, headers=['Description', 'Status'], tablefmt='orgtbl'))
     print("\033c", end="")
