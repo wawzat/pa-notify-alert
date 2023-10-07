@@ -190,38 +190,33 @@ def write_timestamp(time_stamp, com_mode):
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp(com_mode):
+def read_timestamp():
     """
-    Reads the datetime from a text file and returns it as a datetime object with UTC timezone.
-
-    Args:
-        com_mode (str): The communication mode, either 'email' or 'text'.
+    Reads the datetime from several text files and returns them as a tuple.
+    If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
 
     Returns:
-        datetime.datetime: The datetime object with UTC timezone.
-
-    Raises:
-        FileNotFoundError: If the file for the specified communication mode is not found.
-        ValueError: If the datetime string in the file is not in a valid format.
+    tuple: A tuple containing the datetime values read from the text files.
     """
-    file_paths = {
-        'email': 'last_email_notification.txt',
-        'text': 'last_text_notification.txt',
-        'daily_text': 'last_daily_text_notification.txt',
-        'daily_email': 'last_daily_email_notification.txt'
-    }
-    try:
-        file_path = file_paths[com_mode]
-    except KeyError:
-        logger.exception(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
-        print(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
-        sys.exit(1)
-    # Read the datetime from the text file
-    with open(file_path, 'r') as file:
-        datetime_str = file.read().strip()
-    loaded_datetime = datetime.datetime.fromisoformat(datetime_str)
-    loaded_datetime = loaded_datetime.replace(tzinfo=datetime.timezone.utc)
-    return loaded_datetime
+    file_paths = {'last_text_notification.txt':'',
+                  'last_email_notification.txt':'',
+                  'last_daily_text_notification.txt':'',
+                  'last_daily_email_notification.txt':''}
+    for file_path, v in file_paths.items():
+        # Read the datetime from the text file
+        try:
+            with open(file_path, 'r') as file:
+                datetime_str = file.read().strip()
+        except FileNotFoundError:
+            logger.exception(f'Error in read_timestamp(): {file_path} not found')
+            with open(file_path, 'w') as file:
+                # Create a new file with the current datetime minus 24 hours
+                current_datetime = (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S%z')
+                file.write(current_datetime)
+            datetime_str = current_datetime
+        loaded_datetime = datetime.datetime.fromisoformat(datetime_str).replace(tzinfo=datetime.timezone.utc)
+        file_paths[file_path] = loaded_datetime
+    return tuple(file_paths.values())
 
 
 def is_pdt():
@@ -707,10 +702,7 @@ def initialize():
     regional_aqi_mean = 0
     local_pm25_aqi_list = []
     max_data_points = math.ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
-    last_text_notification = read_timestamp('text')
-    last_email_notification = read_timestamp('email')
-    last_daily_text_notification = read_timestamp('daily_text')
-    last_daily_email_notification = read_timestamp('daily_email')
+    last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp()
     return bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification
 
 
@@ -726,6 +718,7 @@ def main():
                 sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
                 if local_pm25_aqi != 'ERROR':
                     local_pm25_aqi_list.append(local_pm25_aqi)
+                    # Keep only the last max_data_points data points
                     local_pm25_aqi_list = local_pm25_aqi_list[-max_data_points:]
                     pm_aqi_roc = aqi_rate_of_change(local_pm25_aqi_list)
                     local_pm25_aqi_avg = sum(local_pm25_aqi_list) / len(local_pm25_aqi_list)
