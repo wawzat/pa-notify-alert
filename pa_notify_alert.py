@@ -105,7 +105,16 @@ def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
     return decorator
 
 
-def status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, num_data_points):
+def status_update(polling_et,
+                  text_notification_et,
+                  email_notification_et,
+                  local_time_stamp,
+                  local_pm25_aqi,
+                  confidence,
+                  pm_aqi_roc,
+                  regional_aqi_mean,
+                  max_data_points,
+                  num_data_points) -> datetime:
     """
     A function that calculates the time remaining and other stats for each interval and prints it in a table format.
 
@@ -160,12 +169,12 @@ def elapsed_time(polling_start, status_start, last_text_notification, last_email
     """
     polling_et: int = (datetime.datetime.now() - polling_start).total_seconds()
     status_et: int = (datetime.datetime.now() - status_start).total_seconds()
-    text_notification_et = (datetime.datetime.now(datetime.timezone.utc) - last_text_notification).total_seconds()
-    email_notification_et = (datetime.datetime.now(datetime.timezone.utc) - last_email_notification).total_seconds()
+    text_notification_et: int = (datetime.datetime.now(datetime.timezone.utc) - last_text_notification).total_seconds()
+    email_notification_et: int = (datetime.datetime.now(datetime.timezone.utc) - last_email_notification).total_seconds()
     return polling_et, status_et, text_notification_et, email_notification_et
 
 
-def write_timestamp(time_stamp, com_mode):
+def write_timestamp(time_stamp, com_mode) -> None:
     """
     Writes the current timestamp to a text file in the specified communication mode file.
 
@@ -193,7 +202,7 @@ def write_timestamp(time_stamp, com_mode):
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp():
+def read_timestamp() -> tuple:
     """
     Reads the datetime from several text files and returns them as a tuple.
     If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
@@ -222,7 +231,7 @@ def read_timestamp():
     return tuple(file_paths.values())
 
 
-def is_pdt():
+def is_pdt() -> bool:
     """
     Determines if it is currently Pacific Daylight Time (PDT) or Pacific Standard Time (PST).
 
@@ -236,7 +245,7 @@ def is_pdt():
     return is_pdt_value
 
 
-def get_local_pa_data(sensor_id) -> float:
+def get_local_pa_data(sensor_id) -> tuple:
     """
     Retrieves data from a PurpleAir sensor with the given sensor ID and calculates the local AQI.
 
@@ -372,7 +381,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def aqi_rate_of_change(data_points):
+def aqi_rate_of_change(data_points: List[float]) -> float:
     """
     Calculates the rate of change of AQI (Air Quality Index) based on the given data points.
 
@@ -389,7 +398,7 @@ def aqi_rate_of_change(data_points):
         y = np.array(data_points)
         # Calculate the slope of the best fit line
         slope, _ = np.polyfit(x, y, 1)
-    return round(slope, 1)
+    return round(slope, 5)
 
 
 @retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
@@ -423,7 +432,7 @@ def text_notify(is_daily: bool,
     Returns:
         datetime.datetime: The current UTC timestamp.
     """
-    rate_of_change_text = f'ROC {pm_aqi_roc} AQI /hr.'
+    rate_of_change_text = f'ROC {pm_aqi_roc:.1f} AQI /hr.'
     if confidence == 'LOW':
         confidence_text = '\n Sensor accuracy is low and may be inaccurate. \n \n'
     else:
@@ -509,9 +518,9 @@ def email_notify(
     else:
         subject = constants.SUBJECT
     if pm_aqi_roc < 0:
-        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc)} AQI points per minute since the previous reading'
+        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc:.1f)} AQI points per minute since the previous reading'
     elif pm_aqi_roc > 0:
-        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc)} AQI points per minute since the previous reading'
+        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc:.1f)} AQI points per minute since the previous reading'
     else:
         rate_of_change_text = f'Air quality has not changed since the previous reading'
     if confidence == 'LOW':
@@ -716,8 +725,10 @@ def initialize():
     local_pm25_aqi_list = []
     max_data_points = math.ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp()
-    return bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification
-
+    return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
+        sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, 
+        regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
+        last_email_notification, last_daily_text_notification, last_daily_email_notification)
 
 def main():
     bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
