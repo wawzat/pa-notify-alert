@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends email notofications when air quality exceeds threshold.
-# James S. Lucas - 20231005
+# James S. Lucas - 20231007
 
 import os
 import sys
@@ -459,7 +459,7 @@ def text_notify(is_daily: bool,
         status = updated_message.status
         status_dict[recipient] = status
     for recipient, status in status_dict.items():
-        log_text = f'{local_time_stamp}: {recipient} - {status}'
+        log_text = f'{local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - {status}'
         with open(os.path.join(os.getcwd(), '1_text_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
@@ -507,6 +507,9 @@ def email_notify(
         attachment_list.append('pa_notify_alert_error_log.txt')
         attachment_list.append('1_text_status_log.txt')
         attachment_list.append('1_email_status_log.txt')
+        subject = f'Daily {constants.SUBJECT}'
+    else:
+        subject = constants.SUBJECT
     if pm_aqi_roc < 0:
         rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc)} AQI points per minute since the previous reading'
     elif pm_aqi_roc > 0:
@@ -532,8 +535,8 @@ def email_notify(
                 f'{constants.EMAIL_DISCLAIMER_PT3}'
     )
     for recipient in email_list:
-        ezgmail.send(recipient, constants.SUBJECT, email_body, attachment_list, mimeSubtype='html')
-        log_text = f'{local_time_stamp}: {recipient} - Sent'
+        ezgmail.send(recipient, subject, email_body, attachment_list, mimeSubtype='html')
+        log_text = f'{local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - Sent'
         with open(os.path.join(os.getcwd(), '1_email_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
