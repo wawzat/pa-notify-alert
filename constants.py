@@ -1,5 +1,7 @@
 TEST_MODE = True
 
+MAX_DAY_OF_WEEK = 4    # 0 = Monday - 6 = Sunday
+
 REPORTING_TIME_ZONE = 'America/Los_Angeles'
 
 # Durations in seconds
