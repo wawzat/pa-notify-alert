@@ -1,6 +1,8 @@
 TEST_MODE = True
 
-MAX_DAY_OF_WEEK = 4    # 0 = Monday - 6 = Sunday
+#  0  |   1   |   2   |   3   |   4   |   5   |   6  |
+# Mon |  Tue  |  Wed  |  Thu  |  Fri  |  Sat  |  Sun |
+MAX_DAY_OF_WEEK = 6
 
 REPORTING_TIME_ZONE = 'America/Los_Angeles'
 
