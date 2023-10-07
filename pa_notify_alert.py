@@ -556,6 +556,10 @@ def polling_criteria_met(polling_et):
     Returns:
         bool: True if the polling criteria has been met, False otherwise.
     """
+    # Check if the day of the week is a weekday
+    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        return False
+
     POLLING_START_TIME = constants.POLLING_START_TIME
     POLLING_END_TIME = constants.POLLING_END_TIME
 
@@ -587,6 +591,10 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
     Returns:
         bool: True if the notification criteria are met, False otherwise.
     """
+    # Check if the day of the week is a weekday
+    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        return False
+
     PRE_OPEN_ALERT_START_TIME = constants.PRE_OPEN_ALERT_START_TIME
     PRE_OPEN_ALERT_END_TIME = constants.PRE_OPEN_ALERT_END_TIME
     OPEN_ALERT_START_TIME = constants.OPEN_ALERT_START_TIME
@@ -634,6 +642,8 @@ def daily_notification_criteria_met(daily_text_notification, daily_email_notific
     Returns:
         bool: True if the daily notification criteria are met, False otherwise.
     """
+    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        return False
     is_pdt_value = is_pdt()
     # Adjust time values for PST
     if not is_pdt_value:
