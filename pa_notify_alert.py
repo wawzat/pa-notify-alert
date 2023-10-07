@@ -326,7 +326,7 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
                     axis=1
                     )        
         df['Ipm25'] = df.apply(
-            lambda x: AQI.calculate(x['pm2.5_atm_a'], x['pm2.5_atm_b']),
+            lambda x: AQI.calculate(x['pm25_epa']),
             axis=1
             )
         mean_ipm25 = df['Ipm25'].mean()
