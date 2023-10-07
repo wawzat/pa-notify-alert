@@ -105,7 +105,7 @@ def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
     return decorator
 
 
-def status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, max_data_points, num_data_points):
+def status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, num_data_points):
     """
     A function that calculates the time remaining and other stats for each interval and prints it in a table format.
 
@@ -136,10 +136,11 @@ def status_update(polling_et, text_notification_et, email_notification_et, local
         ['Polling End:', f'{constants.POLLING_END_TIME}'],
         ['Timestamp:', time_stamp],
         ['PM 2.5 AQI:', local_pm25_aqi],
-        ['Confidence:', confidence],
+        ['Regional AQI:', regional_aqi_mean],
+        ['Gan Sensor Confidence:', confidence],
         ['PM 2.5 AQI Rate of Change:', pm_aqi_roc]
     ]
-    print(tabulate(table_data, headers=['Interval', 'Time Remaining (MM:SS)'], tablefmt='orgtbl'))
+    print(tabulate(table_data, headers=['Description', 'Status'], tablefmt='orgtbl'))
     print("\033c", end="")
     return datetime.datetime.now()
 
@@ -715,7 +716,7 @@ def main():
             sleep(.1)
             polling_et, status_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, last_text_notification, last_email_notification)
             if status_et >= constants.STATUS_INTERVAL:
-                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, max_data_points, len(local_pm25_aqi_list))
+                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
             if polling_criteria_met(polling_et) == (True, True):
                 sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
                 if local_pm25_aqi != 'ERROR':
