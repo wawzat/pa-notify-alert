@@ -518,9 +518,9 @@ def email_notify(
     else:
         subject = constants.SUBJECT
     if pm_aqi_roc < 0:
-        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc:.1f)} AQI points per minute since the previous reading'
+        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc):.1f} AQI points per minute since the previous reading'
     elif pm_aqi_roc > 0:
-        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc:.1f)} AQI points per minute since the previous reading'
+        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc):.1f} AQI points per minute since the previous reading'
     else:
         rate_of_change_text = f'Air quality has not changed since the previous reading'
     if confidence == 'LOW':
