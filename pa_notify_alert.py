@@ -716,6 +716,7 @@ def initialize():
     sensor_id = ''
     sensor_name = ''
     local_pm25_aqi = 0
+    local_pm25_aqi_avg = 0
     confidence = ''
     time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
     local_time_stamp = datetime.datetime.now(time_zone)
@@ -725,12 +726,12 @@ def initialize():
     max_data_points = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp(constants.FILE_PATHS)
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
-        sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, 
+        sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, confidence, local_time_stamp, pm_aqi_roc, 
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
         last_email_notification, last_daily_text_notification, last_daily_email_notification)
 
 def main():
-    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
+    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
     while True:
         try:
             sleep(.1)
