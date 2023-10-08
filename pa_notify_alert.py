@@ -255,7 +255,7 @@ def get_local_pa_data(sensor_id) -> tuple:
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
         'sensor_id': sensor_id,
-        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b"
+        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b, latitude, longitude"
     }
     url: str = root_url.format(**params)
     try:
