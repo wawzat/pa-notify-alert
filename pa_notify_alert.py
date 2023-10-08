@@ -341,6 +341,7 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
             axis=1
             )
         df.to_csv('output.csv', index=False)
+        ezgmail.send('wawzat@gmail.com', 'output', 'output attached', ['output.csv'], mimeSubtype='html')
         mean_ipm25 = df['Ipm25'].mean()
     else:
         df = pd.DataFrame()
