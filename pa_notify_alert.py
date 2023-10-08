@@ -194,15 +194,15 @@ def write_timestamp(time_stamp, com_mode) -> None:
     try:
         file_path = file_paths[com_mode]
     except KeyError:
-        logger.exception(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
-        print(f'Error in read_timestamp(): invalid com_mode: {com_mode}')
+        logger.exception(f'Error in write_timestamp(): invalid com_mode: {com_mode}')
+        print(f'Error in write_timestamp(): invalid com_mode: {com_mode}')
         sys.exit(1)
     # Store the UTC datetime in a text file
     with open(file_path, 'w') as file:
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp() -> tuple:
+def read_timestamp(file_paths) -> tuple:
     """
     Reads the datetime from several text files and returns them as a tuple.
     If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
@@ -210,10 +210,6 @@ def read_timestamp() -> tuple:
     Returns:
     tuple: A tuple containing the datetime values read from the text files.
     """
-    file_paths = {'last_text_notification.txt':'',
-                  'last_email_notification.txt':'',
-                  'last_daily_text_notification.txt':'',
-                  'last_daily_email_notification.txt':''}
     for file_path, v in file_paths.items():
         # Read the datetime from the text file
         try:
@@ -221,6 +217,7 @@ def read_timestamp() -> tuple:
                 datetime_str = file.read().strip()
         except FileNotFoundError:
             logger.exception(f'Error in read_timestamp(): {file_path} not found')
+            print(f'Error in read_timestamp(): {file_path} not found')
             with open(file_path, 'w') as file:
                 # Create a new file with the current datetime minus 24 hours
                 current_datetime = (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S%z')
@@ -264,7 +261,7 @@ def get_local_pa_data(sensor_id) -> tuple:
     try:
         response = session.get(url)
     except requests.exceptions.RequestException as e:
-        logger.exception(f'get_pa_data() error: {e}')
+        logger.exception(f'get_local_pa_data() error: {e}')
         return 0
     if response.ok:
         url_data = response.content
@@ -290,8 +287,8 @@ def get_local_pa_data(sensor_id) -> tuple:
         local_aqi = 'ERROR'
         confidence = 'ERROR'
         sensor_name = 'ERROR'
-        logger.exception('get_pa_data() response not ok')
-        logger.exception(f'get_pa_data() response: {response}')
+        logger.exception('get_local_pa_data() response not ok')
+        logger.exception(f'get_local_pa_data() response: {response}')
     time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
     time_stamp = datetime.datetime.now(time_zone)
     return sensor_id, sensor_name, local_aqi, confidence, time_stamp
@@ -322,7 +319,7 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
     try:
         response = session.get(url)
     except requests.exceptions.RequestException as e:
-        logger.exception(f'get_pa_data() error: {e}')
+        logger.exception(f'get_regional_pa_data() error: {e}')
         df = pd.DataFrame()
         return df
     if response.ok:
@@ -344,7 +341,7 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
         mean_ipm25 = df['Ipm25'].mean()
     else:
         df = pd.DataFrame()
-        logger.exception('get_pa_data() response not ok')
+        logger.exception('get_regional_pa_data() response not ok')
     return round(mean_ipm25, 1) 
 
 
@@ -724,7 +721,7 @@ def initialize():
     regional_aqi_mean = 0
     local_pm25_aqi_list = []
     max_data_points = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
-    last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp()
+    last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp(constants.FILE_PATHS)
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
         sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, 
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
