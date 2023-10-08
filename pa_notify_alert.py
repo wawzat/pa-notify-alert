@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends email notofications when air quality exceeds threshold.
-# James S. Lucas - 20231007
+# James S. Lucas - 20231008
 
 import os
 import sys
@@ -9,8 +9,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 import json
 import pandas as pd
-import numpy as np
-import math
+from numpy import arange, array, polyfit
+from math import ceil
 import datetime
 from time import sleep
 import pytz
@@ -394,10 +394,10 @@ def aqi_rate_of_change(data_points: List[float]) -> float:
     if len(data_points) < 2:
         slope = 0
     else:
-        x = np.arange(len(data_points)) * constants.POLLING_INTERVAL
-        y = np.array(data_points)
+        x = arange(len(data_points)) * constants.POLLING_INTERVAL
+        y = array(data_points)
         # Calculate the slope of the best fit line
-        slope, _ = np.polyfit(x, y, 1)
+        slope, _ = polyfit(x, y, 1)
     return round(slope, 5)
 
 
@@ -723,7 +723,7 @@ def initialize():
     pm_aqi_roc = 0
     regional_aqi_mean = 0
     local_pm25_aqi_list = []
-    max_data_points = math.ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
+    max_data_points = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp()
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
         sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp, pm_aqi_roc, 
