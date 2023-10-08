@@ -15,14 +15,14 @@ NOTIFICATION_INTERVAL: int = 28800     # 8 hours
 READINGS_STORAGE_DURATION: int = 30    # For ROC and Average calculations
 
 # Times in UTC
-POLLING_START_TIME = '11:30:00'        # 4:30 AM PDT
-POLLING_END_TIME = '24:00:00'          # 4:00 PM PDT
+POLLING_START_TIME = '11:50:00'        # 4:50 AM PDT
+POLLING_END_TIME = '23:00:00'          # 4:00 PM PDT
 
 PRE_OPEN_ALERT_START_TIME = '12:30:00' # 5:30 AM PDT
 PRE_OPEN_ALERT_END_TIME = '14:59:59'   # 7:59:59 AM PDT
 
 OPEN_ALERT_START_TIME = '15:00:00'     # 8:00 AM PDT
-OPEN_ALERT_END_TIME = '24:00:00'       # 4:00 PM PDT
+OPEN_ALERT_END_TIME = '23:00:00'       # 4:00 PM PDT
 
 # Values in AQI
 PRE_OPEN_AQI_ALERT_THRESHOLD = 125
@@ -42,3 +42,8 @@ EMAIL_DISCLAIMER_PT3 = 'AQI provided in this notification is based on PM 2.5 par
             'may also be present but are not included in this notification.'
 
 PA_MAP_TEXT_LINK = 'https://map.purpleair.com/1/i/mAQI/a0/p604800/cC5?select=70745#14.28/38.01731/-122.55343'
+
+FILE_PATHS = {'last_text_notification.txt':'',
+                'last_email_notification.txt':'',
+                'last_daily_text_notification.txt':'',
+                'last_daily_email_notification.txt':''}
