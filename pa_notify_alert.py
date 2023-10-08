@@ -110,6 +110,7 @@ def status_update(polling_et,
                   email_notification_et,
                   local_time_stamp,
                   local_pm25_aqi,
+                  local_pm25_aqi_avg,
                   confidence,
                   pm_aqi_roc,
                   regional_aqi_mean,
@@ -136,15 +137,14 @@ def status_update(polling_et,
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     table_data = [
         ['Polling:', f'{polling_minutes:02d}:{polling_seconds:02d}'],
-        ['Text Notification:', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d}'],
-        ['Email Notification:', f'{email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
-        ['Max Data Points:', f'{max_data_points}'],
-        ['Num Data Points:', f'{num_data_points}'],
-        ['Polling Start:', f'{constants.POLLING_START_TIME}'],
-        ['Time Now:', f'{datetime.datetime.utcnow().strftime("%H:%M:%S")}'],
-        ['Polling End:', f'{constants.POLLING_END_TIME}'],
+        ['Text / Email Notification:', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d} / {email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
+        ['Num / Max Data Points:', f'{num_data_points} / {max_data_points}'],
+        ['Polling Start / Now / End:', f'{constants.POLLING_START_TIME} / {datetime.datetime.utcnow().strftime("%H:%M:%S")} / {constants.POLLING_END_TIME}'],
+        ['Pre-Open Alert Start / Now / End:', f'{constants.PRE_OPEN_ALERT_START_TIME} / {datetime.datetime.utcnow().strftime("%H:%M:%S")} / {constants.PRE_OPEN_ALERT_END_TIME}'],
+        ['Open Alert Start / Now / End:', f'{constants.OPEN_ALERT_START_TIME} / {datetime.datetime.utcnow().strftime("%H:%M:%S")} / {constants.OPEN_ALERT_END_TIME}'],
         ['Timestamp:', f'{time_stamp}'],
         ['PM 2.5 AQI:', f'{local_pm25_aqi:.0f}'],
+        ['PM 2.5 AQI Average:', f'{local_pm25_aqi_avg:.0f}'],
         ['Regional AQI:', f'{regional_aqi_mean:.0f}'],
         ['Gan Sensor Confidence:', f'{confidence}'],
         ['PM 2.5 AQI Rate of Change:', f'{pm_aqi_roc:.5f}']
@@ -736,7 +736,7 @@ def main():
             sleep(.1)
             polling_et, status_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, last_text_notification, last_email_notification)
             if status_et >= constants.STATUS_INTERVAL:
-                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
+                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
             if polling_criteria_met(polling_et) == (True, True):
                 sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
                 if local_pm25_aqi != 'ERROR':
