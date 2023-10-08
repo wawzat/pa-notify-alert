@@ -749,7 +749,7 @@ def main():
                 regional_aqi_mean = get_regional_pa_data(bbox)
                 polling_start: datetime = datetime.datetime.now()
                 #if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list)):
-                if notification_criteria_met(130, regional_aqi_mean, len(local_pm25_aqi_list)):
+                if notification_criteria_met(150, regional_aqi_mean, len(local_pm25_aqi_list)):
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
