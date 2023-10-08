@@ -255,7 +255,7 @@ def get_local_pa_data(sensor_id) -> tuple:
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
         'sensor_id': sensor_id,
-        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b, latitude, longitude"
+        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b"
     }
     url: str = root_url.format(**params)
     try:
@@ -308,7 +308,7 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
     """
     root_url: str = 'https://api.purpleair.com/v1/sensors/?fields={fields}&location_type={location_type}&max_age={max_age}&nwlng={nwlng}&nwlat={nwlat}&selng={selng}&selat={selat}'
     params = {
-        'fields': "humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b",
+        'fields': "humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b,latitude,longitude",
         'location_type': "0",
         'max_age': "240",
         'nwlng': bbox[0],
