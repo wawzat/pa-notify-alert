@@ -26,7 +26,7 @@
  
 ### Notes:
 
-Edit config.iti with text and email contact info, API keys and regional bounding box.
-Requires twilio account for text messaging. ---PLACEHOLDER FOR LINK---
-Requires a google developer Gmail app to be setup ---PLACEHOLDER FOR LINK---
-Requires read key from PurpleAir ---PLACEHOLDER FOR LINK---
+- Edit config.iti with text and email contact info, API keys and regional bounding box.
+- Requires twilio account for text messaging. ---PLACEHOLDER FOR LINK---
+- Requires a google developer Gmail app to be setup ---PLACEHOLDER FOR LINK---
+- Requires read key from PurpleAir ---PLACEHOLDER FOR LINK---
