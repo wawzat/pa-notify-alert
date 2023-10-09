@@ -11,7 +11,7 @@
 - Readings are converted with the US EPA conversion (more accurate for wood smoke, under estimates "normal dust").
  
 - If the local sensor or regional average AQI is >= 125 between 5:30AM and 7:59:59 AM PT on a weekday a notification will be sent.  
-- If the local sensor or regional average AQI is >= 140 between 8:00AM and 4:00 PM PT on a weekday a notificatin will be sent
+- If the local sensor or regional average AQI is >= 140 between 8:00AM and 4:00 PM PT on a weekday a notification will be sent
  
 - Notifications can be via text, email or both.
 
