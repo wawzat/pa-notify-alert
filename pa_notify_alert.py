@@ -409,6 +409,7 @@ def aqi_rate_of_change(data_points: List[float]) -> float:
     return round(slope, 5)
 
 
+@retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
 def text_notify(is_daily: bool,
                 first_line: str,
                 sensor_id: int,
@@ -651,13 +652,12 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
     return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= 4
 
 
-def daily_notification_criteria_met(daily_text_notification, daily_email_notification):
+def daily_text_notification_criteria_met(daily_text_notification):
     """
-    Determines if the daily notification criteria has been met based on the current time and day of the week.
+    Determines if the daily text notification criteria has been met based on the current time and day of the week.
 
     Args:
         daily_text_notification (datetime.datetime): The last time a text notification was sent.
-        daily_email_notification (datetime.datetime): The last time an email notification was sent.
 
     Returns:
         bool: True if the criteria has been met, False otherwise.
@@ -668,13 +668,32 @@ def daily_notification_criteria_met(daily_text_notification, daily_email_notific
     # Adjust time values for PST
     if not is_pdt_value:
         daily_text_notification += datetime.timedelta(hours=1)
-        daily_email_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+    return text_criteria
+
+
+def daily_email_notification_criteria_met(daily_email_notification):
+    """
+    Determines if the daily email notification criteria has been met based on the current time and day of the week.
+
+    Args:
+        daily_email_notification (datetime.datetime): The last time an email notification was sent.
+
+    Returns:
+        bool: True if the criteria has been met, False otherwise.
+    """
+    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        return False
+    is_pdt_value = is_pdt()
+    # Adjust time values for PST
+    if not is_pdt_value:
+        daily_email_notification += datetime.timedelta(hours=1)
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
     email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
-    return text_criteria or email_criteria
+    return email_criteria
 
 
 def com_lists():
@@ -795,9 +814,10 @@ def main():
                         last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_email_notification = email_notify(False, '', email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
-                if daily_notification_criteria_met(last_daily_text_notification, last_daily_email_notification):
+                if daily_text_notification_criteria_met(last_daily_text_notification):
                     if len(admin_text_list) > 0:
                         last_daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                if daily_email_notification_criteria_met(last_daily_email_notification):
                     if len(email_list) > 0:
                         last_daily_email_notification = email_notify(True, 'Daily Notification <br>', admin_email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
