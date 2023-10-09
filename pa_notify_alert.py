@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231008
+# James S. Lucas - 20231009
 
 import os
 import sys
@@ -40,7 +40,7 @@ file_handler.setFormatter(formatter)
 # add file handler to logger
 logger.addHandler(file_handler)
 
-# Setup requests session with retry
+# Setup requests session with retry for PurpleAir API
 session = requests.Session()
 retry = Retry(total=10, backoff_factor=1.0)
 adapter = HTTPAdapter(max_retries=retry)
@@ -117,14 +117,23 @@ def status_update(polling_et,
                   max_data_points,
                   num_data_points) -> datetime:
     """
-    A function that calculates the time remaining and other stats for each interval and prints it in a table format.
+    Prints the status update table with the current status of the PurpleAir sensor.
 
     Args:
-        polling_et (int): The elapsed time for the polling interval in seconds.
-        notification_et (int): The elapsed time for the notification in seconds.
+        polling_et (int): The elapsed time since the last polling.
+        text_notification_et (int): The elapsed time since the last text notification.
+        email_notification_et (int): The elapsed time since the last email notification.
+        local_time_stamp (datetime): The local timestamp.
+        local_pm25_aqi (float): The local PM 2.5 AQI.
+        local_pm25_aqi_avg (float): The local PM 2.5 AQI average.
+        confidence (float): The Gan sensor confidence.
+        pm_aqi_roc (float): The PM 2.5 AQI rate of change.
+        regional_aqi_mean (float): The regional AQI mean.
+        max_data_points (int): The maximum number of data points.
+        num_data_points (int): The current number of data points.
 
     Returns:
-        A datetime object representing the current time.
+        datetime: The current datetime.
     """
     polling_minutes = int((constants.POLLING_INTERVAL - polling_et) / 60)
     polling_seconds = int((constants.POLLING_INTERVAL - polling_et) % 60)
@@ -300,18 +309,17 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
     A function that queries the PurpleAir API for outdoor sensor data within a given bounding box and time frame.
 
     Args:
-        previous_time (datetime): A datetime object representing the time of the last query.
         bbox (List[float]): A list of four floats representing the bounding box of the area of interest.
             The order is [northwest longitude, southeast latitude, southeast longitude, northwest latitude].
 
     Returns:
-        Ipm25 (float) - Float of the pseudo PM 2.5 AQI with EPA correction.
+        Mean Ipm25 (float) - Float of the pseudo PM 2.5 AQI with US EPA correction.
     """
     root_url: str = 'https://api.purpleair.com/v1/sensors/?fields={fields}&location_type={location_type}&max_age={max_age}&nwlng={nwlng}&nwlat={nwlat}&selng={selng}&selat={selat}'
     params = {
         'fields': "humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b",
         'location_type': "0",
-        'max_age': "240",
+        'max_age': f"{constants.POLLING_INTERVAL * 3}",
         'nwlng': bbox[0],
         'selat': bbox[1],
         'selng': bbox[2],
@@ -359,8 +367,8 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         A new DataFrame with the rows removed where the difference between the PM2.5 atmospheric concentration readings
-        from two sensors is either greater than or equal to 5 or greater than or equal to 70% of the average of the two readings,
-        or greater than 2000.
+        from two sensors is either greater than or equal to 5 or greater than or equal to 70% of the average of the two readings 
+        (US EPA Conversion data cleaning criteria), or greater than 2000.
     """
     df = df.drop(df[df['pm2.5_atm_a'] > 2000].index)
     df = df.drop(df[df['pm2.5_atm_b'] > 2000].index)
@@ -389,7 +397,7 @@ def aqi_rate_of_change(data_points: List[float]) -> float:
         data_points (list): A list of AQI data points.
 
     Returns:
-        float: The rate of change of AQI rounded to 1 decimal place.
+        float: The rate of change of AQI in AQI / min rounded to 5 decimal places.
     """
     if len(data_points) < 2:
         slope = 0
@@ -401,7 +409,6 @@ def aqi_rate_of_change(data_points: List[float]) -> float:
     return round(slope, 5)
 
 
-@retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
 def text_notify(is_daily: bool,
                 first_line: str,
                 sensor_id: int,
@@ -415,22 +422,24 @@ def text_notify(is_daily: bool,
                 confidence: str,
                 regional_aqi_mean: float) -> datetime:
     """
-    Sends a text notification to a list of recipients with information about air quality readings from a PurpleAir sensor.
+    Sends a text notification to a list of recipients with the current air quality information.
 
     Args:
-        sensor_id (str): The ID of the PurpleAir sensor.
-        sensor_name (str): The name of the PurpleAir sensor.
-        text_list (list): A list of phone numbers to send the text notification to.
-        local_time_stamp (str): The local timestamp of the air quality reading.
-        local_pm25_aqi (int): The AQI (Air Quality Index) based on PM2.5 readings from the sensor.
-        pm_aqi_roc (float): The rate of change of the AQI based on PM2.5 readings from the sensor.
-        local_pm25_aqi_avg (int): The average AQI based on PM2.5 readings from the sensor over a certain duration.
-        local_pm25_aqi_avg_duration (int): The duration over which the average AQI based on PM2.5 readings was calculated.
-        confidence (str): The confidence level of the sensor readings ('LOW' or 'HIGH').
-        regional_aqi_mean (int): The regional average AQI based on PM2.5 readings.
+    - is_daily (bool): Whether the notification is a daily summary or not.
+    - first_line (str): The first line of the text message.
+    - sensor_id (int): The ID of the sensor.
+    - sensor_name (str): The name of the sensor.
+    - text_list (List[str]): A list of phone numbers to send the text message to.
+    - local_time_stamp (datetime): The local timestamp of the air quality reading.
+    - local_pm25_aqi (float): The local PM2.5 AQI reading.
+    - pm_aqi_roc (float): The rate of change of the PM2.5 AQI reading.
+    - local_pm25_aqi_avg (float): The local average PM2.5 AQI reading.
+    - local_pm25_aqi_avg_duration (int): The duration of the local average PM2.5 AQI reading.
+    - confidence (str): The confidence level of the sensor reading.
+    - regional_aqi_mean (float): The regional average PM2.5 AQI reading.
 
     Returns:
-        datetime.datetime: The current UTC timestamp.
+    - datetime: The UTC timestamp of the text notification.
     """
     rate_of_change_text = f'ROC {pm_aqi_roc:.1f} AQI /hr.'
     if confidence == 'LOW':
@@ -456,7 +465,6 @@ def text_notify(is_daily: bool,
         message = twilio_client.messages.create(
             body=text_body,
             from_=config.get('twilio', 'TWILIO_PHONE_NUMBER').strip("'"),
-            #status_callback=config.get('requestbin', 'REQUESTBIN_URL').strip("'"),
             to=recipient
         )
         message_sid_dict[recipient] = message.sid
@@ -492,22 +500,24 @@ def email_notify(
     pm_aqi_roc: float,
     regional_aqi_mean: float) -> datetime:
     """
-    Sends an email notification to a list of recipients with information about air quality data from a PurpleAir sensor.
+    Sends an email notification with air quality information for a PurpleAir sensor.
 
     Args:
+        is_daily (bool): Whether the email is a daily summary or not.
+        first_line (str): The first line of the email body.
         email_list (List[str]): A list of email addresses to send the notification to.
-        local_time_stamp (datetime.datetime): The local timestamp of the air quality data.
+        local_time_stamp (datetime): The local timestamp of the air quality reading.
         sensor_id (str): The ID of the PurpleAir sensor.
         sensor_name (str): The name of the PurpleAir sensor.
-        local_pm25_aqi (float): The PM 2.5 AQI value for the sensor.
-        local_pm25_aqi_avg (float): The PM 2.5 AQI value for the sensor averaged over a certain duration.
-        local_pm25_aqi_avg_duration (int): The duration over which the PM 2.5 AQI value is averaged.
-        confidence (str): The confidence level of the sensor data.
-        pm_aqi_roc (float): The rate of change of the PM 2.5 AQI value since the previous reading.
-        regional_aqi_mean (float): The regional average PM 2.5 AQI value.
+        local_pm25_aqi (float): The PM 2.5 AQI reading for the sensor.
+        local_pm25_aqi_avg (float): The PM 2.5 AQI reading for the sensor averaged over a certain duration.
+        local_pm25_aqi_avg_duration (int): The duration over which the PM 2.5 AQI reading is averaged.
+        confidence (str): The confidence level of the sensor reading.
+        pm_aqi_roc (float): The rate of change of the PM 2.5 AQI reading since the previous reading.
+        regional_aqi_mean (float): The regional average PM 2.5 AQI reading.
 
     Returns:
-        datetime.datetime: The UTC timestamp of when the email was sent.
+        datetime: The UTC timestamp of when the email was sent.
     """
     attachment_list = []
     if is_daily:
@@ -643,13 +653,14 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
 
 def daily_notification_criteria_met(daily_text_notification, daily_email_notification):
     """
-    Determines if the daily notification criteria are met based on the current time.
+    Determines if the daily notification criteria has been met based on the current time and day of the week.
 
     Args:
-        None
+        daily_text_notification (datetime.datetime): The last time a text notification was sent.
+        daily_email_notification (datetime.datetime): The last time an email notification was sent.
 
     Returns:
-        bool: True if the daily notification criteria are met, False otherwise.
+        bool: True if the criteria has been met, False otherwise.
     """
     if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
         return False
@@ -663,7 +674,7 @@ def daily_notification_criteria_met(daily_text_notification, daily_email_notific
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
     email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
-    return text_criteria or email_criteria  
+    return text_criteria or email_criteria
 
 
 def com_lists():
@@ -677,6 +688,7 @@ def com_lists():
         email_list (list): A list of email addresses.
         text_list (list): A list of phone numbers.
         admin_text_list (list): A list of phone numbers.
+        admin_email_list (list): A list of email addresses.
     """
     admin_text_list = []
     admin_text_items = config.items('admin_text_numbers')
@@ -708,6 +720,33 @@ def com_lists():
 
 
 def initialize():
+    """
+    Initializes the necessary variables for the PurpleAir notification alert system.
+
+    Returns:
+    tuple: A tuple containing the following variables:
+        - bbox (list): A list of bounding box coordinates.
+        - email_list (list): A list of email addresses to send notifications to.
+        - text_list (list): A list of phone numbers to send text notifications to.
+        - admin_text_list (list): A list of phone numbers to send administrative text notifications to.
+        - admin_email_list (list): A list of email addresses to send administrative notifications to.
+        - status_start (datetime): The start time of the system status.
+        - polling_start (datetime): The start time of the polling.
+        - sensor_id (str): The ID of the PurpleAir sensor.
+        - sensor_name (str): The name of the PurpleAir sensor.
+        - local_pm25_aqi (float): The local PM2.5 AQI.
+        - local_pm25_aqi_avg (float): The local PM2.5 AQI average.
+        - confidence (str): The confidence level of the PurpleAir sensor.
+        - local_time_stamp (datetime): The local timestamp.
+        - pm_aqi_roc (float): The rate of change of the PM2.5 AQI.
+        - regional_aqi_mean (float): The regional AQI mean.
+        - local_pm25_aqi_list (list): A list of local PM2.5 AQI values.
+        - max_data_points (int): The maximum number of data points to store.
+        - last_text_notification (datetime): The timestamp of the last text notification.
+        - last_email_notification (datetime): The timestamp of the last email notification.
+        - last_daily_text_notification (datetime): The timestamp of the last daily text notification.
+        - last_daily_email_notification (datetime): The timestamp of the last daily email notification.
+    """
     bbox = [] 
     bbox_items = config.items('bbox')
     for key, path in bbox_items:
