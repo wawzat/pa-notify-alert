@@ -143,12 +143,12 @@ def status_update(polling_et,
         ['Polling Start / End:', f'{constants.POLLING_START_TIME} |          | {constants.POLLING_END_TIME}'],
         ['Pre-Open Alert Start / End:', f'{constants.PRE_OPEN_ALERT_START_TIME} |          | {constants.PRE_OPEN_ALERT_END_TIME}'],
         ['Open Alert Start / End:', f'{constants.OPEN_ALERT_START_TIME} |          | {constants.OPEN_ALERT_END_TIME}'],
-        ['Timestamp:', f'{time_stamp}'],
         ['PM 2.5 AQI:', f'{local_pm25_aqi:.0f}'],
         ['PM 2.5 AQI Average:', f'{local_pm25_aqi_avg:.0f}'],
         ['Regional AQI:', f'{regional_aqi_mean:.0f}'],
         ['Gan Sensor Confidence:', f'{confidence}'],
-        ['PM 2.5 AQI Rate of Change:', f'{pm_aqi_roc:.5f}']
+        ['PM 2.5 AQI Rate of Change:', f'{pm_aqi_roc:.5f}'],
+        ['Timestamp:', f'{time_stamp}']
     ]
     print(tabulate(table_data, headers=['Description', 'Status'], tablefmt='orgtbl'))
     print("\033c", end="")
