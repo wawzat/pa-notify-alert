@@ -1,8 +1,8 @@
-TEST_MODE = True
+TEST_MODE = False
 
 #  0  |   1   |   2   |   3   |   4   |   5   |   6  |
 # Mon |  Tue  |  Wed  |  Thu  |  Fri  |  Sat  |  Sun |
-MAX_DAY_OF_WEEK = 6
+MAX_DAY_OF_WEEK = 4
 
 REPORTING_TIME_ZONE = 'America/Los_Angeles'
 
