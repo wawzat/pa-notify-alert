@@ -751,7 +751,7 @@ def check_logs():
         None
     """
     # List of file names
-    file_names = ['1_text_status_log.txt', '1_email_status_log.txt']
+    file_names = ['1_text_status_log.txt', '1_email_status_log.txt', 'pa_notify_alert_error_log.txt']
 
     # Check each file
     for file_name in file_names:
