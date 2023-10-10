@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231009
+# James S. Lucas - 20231010
 
 import os
 import sys
@@ -105,17 +105,17 @@ def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
     return decorator
 
 
-def status_update(polling_et,
-                  text_notification_et,
-                  email_notification_et,
-                  local_time_stamp,
-                  local_pm25_aqi,
-                  local_pm25_aqi_avg,
-                  confidence,
-                  pm_aqi_roc,
-                  regional_aqi_mean,
-                  max_data_points,
-                  num_data_points) -> datetime:
+def status_update(polling_et: int,
+                  text_notification_et: int,
+                  email_notification_et: int,
+                  local_time_stamp: datetime,
+                  local_pm25_aqi: float,
+                  local_pm25_aqi_avg: float,
+                  confidence: str,
+                  pm_aqi_roc: float,
+                  regional_aqi_mean: float,
+                  max_data_points: int,
+                  num_data_points: int) -> datetime:
     """
     Prints the status update table with the current status of the PurpleAir sensor.
 
@@ -164,7 +164,10 @@ def status_update(polling_et,
     return datetime.datetime.now()
 
 
-def elapsed_time(polling_start, status_start, last_text_notification, last_email_notification):
+def elapsed_time(polling_start: datetime,
+                 status_start: datetime,
+                 last_text_notification: datetime,
+                 last_email_notification: datetime) -> tuple:
     """
     Calculates the elapsed time in seconds since the given timestamps.
 
@@ -184,7 +187,7 @@ def elapsed_time(polling_start, status_start, last_text_notification, last_email
     return polling_et, status_et, text_notification_et, email_notification_et
 
 
-def write_timestamp(time_stamp, com_mode) -> None:
+def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
     """
     Writes the current timestamp to a text file in the specified communication mode file.
 
@@ -212,7 +215,7 @@ def write_timestamp(time_stamp, com_mode) -> None:
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp(file_paths) -> tuple:
+def read_timestamp(file_paths: list[str]) -> tuple:
     """
     Reads the datetime from several text files and returns them as a tuple.
     If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
@@ -252,7 +255,7 @@ def is_pdt() -> bool:
     return is_pdt_value
 
 
-def get_local_pa_data(sensor_id) -> tuple:
+def get_local_pa_data(sensor_id: int) -> tuple:
     """
     Retrieves data from a PurpleAir sensor with the given sensor ID and calculates the local AQI.
 
@@ -566,7 +569,7 @@ def email_notify(
     return utc_now.replace(tzinfo=pytz.utc)
 
 
-def polling_criteria_met(polling_et):
+def polling_criteria_met(polling_et: int) -> bool:
     """
     Determines if the polling criteria has been met based on the current time and the polling interval.
 
@@ -600,12 +603,13 @@ def polling_criteria_met(polling_et):
         datetime.datetime.utcnow().strftime('%H:%M:%S') <= POLLING_END_TIME
 
 
-def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points):
+def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, num_data_points: int) -> bool:
     """
     Determines if the notification criteria are met based on the local PM2.5 AQI and number of data points collected.
 
     Args:
         local_pm25_aqi (float): The local PM2.5 AQI.
+        regional_aqi_mean (float): The local PM2.5 AQI.
         num_data_points (int): The number of data points.
 
     Returns:
@@ -652,7 +656,7 @@ def notification_criteria_met(local_pm25_aqi, regional_aqi_mean, num_data_points
     return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= 4
 
 
-def daily_text_notification_criteria_met(daily_text_notification):
+def daily_text_notification_criteria_met(daily_text_notification: datetime) -> bool:
     """
     Determines if the daily text notification criteria has been met based on the current time and day of the week.
 
@@ -674,7 +678,7 @@ def daily_text_notification_criteria_met(daily_text_notification):
     return text_criteria
 
 
-def daily_email_notification_criteria_met(daily_email_notification):
+def daily_email_notification_criteria_met(daily_email_notification: datetime) -> bool:
     """
     Determines if the daily email notification criteria has been met based on the current time and day of the week.
 
@@ -696,7 +700,7 @@ def daily_email_notification_criteria_met(daily_email_notification):
     return email_criteria
 
 
-def com_lists():
+def com_lists() -> tuple:
     """
     A function that reads the email and text lists from the config file.
 
