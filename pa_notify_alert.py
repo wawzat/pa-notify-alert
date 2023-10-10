@@ -16,7 +16,7 @@ from time import sleep
 import pytz
 from tabulate import tabulate
 import logging
-from typing import List
+from typing import List, Dict
 from conversions import AQI, EPA
 import constants
 from configparser import ConfigParser
@@ -210,7 +210,7 @@ def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp(file_paths: dict[str]) -> tuple:
+def read_timestamp(file_paths: Dict[str]) -> tuple:
     """
     Reads the datetime from several text files and returns them as a tuple.
     If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
