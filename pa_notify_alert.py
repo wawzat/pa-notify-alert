@@ -661,8 +661,8 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime) -> b
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
-        return False
+    #if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        #return False
     is_pdt_value = is_pdt()
     # Adjust time values for PST
     if not is_pdt_value:
@@ -683,8 +683,8 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime) ->
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
-        return False
+    #if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        #return False
     is_pdt_value = is_pdt()
     # Adjust time values for PST
     if not is_pdt_value:
