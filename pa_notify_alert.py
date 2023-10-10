@@ -198,12 +198,7 @@ def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
     Returns:
         None
     """
-    file_paths = {
-        'email': 'last_email_notification.txt',
-        'text': 'last_text_notification.txt',
-        'daily_text': 'last_daily_text_notification.txt',
-        'daily_email': 'last_daily_email_notification.txt'
-    }
+    file_paths = constants.FILE_PATHS
     try:
         file_path = file_paths[com_mode]
     except KeyError:
@@ -215,7 +210,7 @@ def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp(file_paths: list[str]) -> tuple:
+def read_timestamp(file_paths: dict[str]) -> tuple:
     """
     Reads the datetime from several text files and returns them as a tuple.
     If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
