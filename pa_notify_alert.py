@@ -740,6 +740,27 @@ def com_lists() -> tuple:
     return email_list, text_list, admin_text_list, admin_email_list
 
 
+def check_logs():
+    """
+    Check the status of two log files and create them if they don't exist.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    # List of file names
+    file_names = ['1_text_status_log.txt', '1_email_status_log.txt']
+
+    # Check each file
+    for file_name in file_names:
+        if not os.path.isfile(file_name):
+            # If file does not exist, create it
+            with open(file_name, 'w') as f:
+                pass
+
+
 def initialize():
     """
     Initializes the necessary variables for the PurpleAir notification alert system.
@@ -768,6 +789,7 @@ def initialize():
         - last_daily_text_notification (datetime): The timestamp of the last daily text notification.
         - last_daily_email_notification (datetime): The timestamp of the last daily email notification.
     """
+    check_logs()
     bbox = [] 
     bbox_items = config.items('bbox')
     for key, path in bbox_items:
