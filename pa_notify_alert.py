@@ -190,15 +190,18 @@ def elapsed_time(polling_start: datetime,
 def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
     """
     Writes the current timestamp to a text file in the specified communication mode file.
-
     Args:
         time_stamp (datetime): The current timestamp to be written to the file.
         com_mode (str): The communication mode filename to write the timestamp to ('email' or 'text').
-
     Returns:
         None
     """
-    file_paths = constants.FILE_PATHS
+    file_paths = {
+        'email': 'last_email_notification.txt',
+        'text': 'last_text_notification.txt',
+        'daily_text': 'last_daily_text_notification.txt',
+        'daily_email': 'last_daily_email_notification.txt'
+    }
     try:
         file_path = file_paths[com_mode]
     except KeyError:
