@@ -26,7 +26,7 @@ OPEN_ALERT_END_TIME = '23:00:00'       # 4:00 PM PDT
 
 # Values in AQI
 PRE_OPEN_AQI_ALERT_THRESHOLD = 125
-OPEN_AQI_ALERT_THRESHOLD = 10
+OPEN_AQI_ALERT_THRESHOLD = 140
 
 SUBJECT = 'pa.notify.alert - PurpleAir Sensor Air Quality Alert'
 EMAIL_BODY_INTRO = 'High AQI Notification From pa.notify.alert'
