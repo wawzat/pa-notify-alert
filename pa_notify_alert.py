@@ -601,7 +601,7 @@ def polling_criteria_met(polling_et: int) -> bool:
         datetime.datetime.utcnow().strftime('%H:%M:%S') <= POLLING_END_TIME
 
 
-def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, num_data_points: int) -> bool:
+def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, num_data_points: int, max_data_points: int) -> bool:
     """
     Determines if the notification criteria are met based on the local PM2.5 AQI and number of data points collected.
 
@@ -651,7 +651,7 @@ def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, n
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= OPEN_ALERT_START_TIME and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') <= OPEN_ALERT_END_TIME and \
         (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >- constants.OPEN_AQI_ALERT_THRESHOLD))
-    return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= 4
+    return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= max_data_points 
 
 
 def daily_text_notification_criteria_met(daily_text_notification: datetime) -> bool:
@@ -832,8 +832,7 @@ def main():
                     local_pm25_aqi_avg_duration = (len(local_pm25_aqi_list) -1) * (constants.POLLING_INTERVAL/60)
                 regional_aqi_mean = get_regional_pa_data(bbox)
                 polling_start: datetime = datetime.datetime.now()
-                #if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list)):
-                if notification_criteria_met(150, regional_aqi_mean, len(local_pm25_aqi_list)):
+                if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list), max_data_points):
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
