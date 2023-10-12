@@ -345,11 +345,14 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
         df = df.fillna('')
         df['time_stamp'] = datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')
         df = df[cols]
+        print(df)
         df = clean_data(df)
+        print(df)
         df['pm25_epa'] = df.apply(
                     lambda x: EPA.calculate(x['humidity'], x['pm2.5_cf_1_a'], x['pm2.5_cf_1_b']),
                     axis=1
-                    )        
+                    )
+        print(df)
         df['Ipm25'] = df.apply(
             lambda x: AQI.calculate(x['pm25_epa']),
             axis=1
