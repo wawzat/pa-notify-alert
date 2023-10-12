@@ -221,6 +221,10 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
     Returns:
     tuple: A tuple containing the datetime values read from the text files.
     """
+    keys_order = ['last_text_notification.txt',
+                  'last_email_notification.txt',
+                  'last_daily_text_notification.txt',
+                  'last_daily_email_notification.txt']
     for file_path, v in file_paths.items():
         # Read the datetime from the text file
         try:
@@ -236,10 +240,8 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
             datetime_str = current_datetime
         loaded_datetime = datetime.datetime.fromisoformat(datetime_str).replace(tzinfo=datetime.timezone.utc)
         file_paths[file_path] = loaded_datetime
-    for k, v in file_paths.items():
-        print(f'{k}: {v}')
-    print(tuple(file_paths.values()))
-    return tuple(file_paths.values())
+    print(f'{key} - {file_paths[key]}' for key in keys_order)
+    return [file_paths[key] for key in keys_order]
 
 
 def is_pdt() -> bool:
