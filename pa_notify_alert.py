@@ -236,6 +236,8 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
             datetime_str = current_datetime
         loaded_datetime = datetime.datetime.fromisoformat(datetime_str).replace(tzinfo=datetime.timezone.utc)
         file_paths[file_path] = loaded_datetime
+    for k, v in file_paths.items():
+        print(f'{k}: {v}')
     return tuple(file_paths.values())
 
 
