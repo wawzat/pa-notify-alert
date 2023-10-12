@@ -645,12 +645,12 @@ def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, n
     pre_open_notification_criteria = (
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= PRE_OPEN_ALERT_START_TIME and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') <= PRE_OPEN_ALERT_END_TIME and \
-        (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >- constants.PRE_OPEN_AQI_ALERT_THRESHOLD))
+        (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >= constants.PRE_OPEN_AQI_ALERT_THRESHOLD))
 
     open_notification_criteria = (
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= OPEN_ALERT_START_TIME and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') <= OPEN_ALERT_END_TIME and \
-        (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >- constants.OPEN_AQI_ALERT_THRESHOLD))
+        (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >= constants.OPEN_AQI_ALERT_THRESHOLD))
     return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= max_data_points 
 
 
