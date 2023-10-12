@@ -309,7 +309,7 @@ def get_local_pa_data(sensor_id: int) -> tuple:
     return sensor_id, sensor_name, local_aqi, confidence, time_stamp
 
 
-def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
+def get_regional_pa_data(bbox: List[float], local_aqi: float) -> pd.DataFrame:
     """
     A function that queries the PurpleAir API for outdoor sensor data within a given bounding box and time frame.
 
@@ -345,19 +345,20 @@ def get_regional_pa_data(bbox: List[float]) -> pd.DataFrame:
         df = df.fillna('')
         df['time_stamp'] = datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')
         df = df[cols]
-        print(df)
         df = clean_data(df)
-        print(df)
-        df['pm25_epa'] = df.apply(
-                    lambda x: EPA.calculate(x['humidity'], x['pm2.5_cf_1_a'], x['pm2.5_cf_1_b']),
-                    axis=1
-                    )
-        print(df)
-        df['Ipm25'] = df.apply(
-            lambda x: AQI.calculate(x['pm25_epa']),
-            axis=1
-            )
-        mean_ipm25 = df['Ipm25'].mean()
+        if not df.empty:
+            df['pm25_epa'] = df.apply(
+                        lambda x: EPA.calculate(x['humidity'], x['pm2.5_cf_1_a'], x['pm2.5_cf_1_b']),
+                        axis=1
+                        )
+            df['Ipm25'] = df.apply(
+                lambda x: AQI.calculate(x['pm25_epa']),
+                axis=1
+                )
+            mean_ipm25 = df['Ipm25'].mean()
+        else:
+            mean_ipm25 = local_aqi
+
     else:
         df = pd.DataFrame()
         logger.exception('get_regional_pa_data() response not ok')
@@ -837,7 +838,7 @@ def main():
                     pm_aqi_roc = aqi_rate_of_change(local_pm25_aqi_list)
                     local_pm25_aqi_avg = sum(local_pm25_aqi_list) / len(local_pm25_aqi_list)
                     local_pm25_aqi_avg_duration = (len(local_pm25_aqi_list) -1) * (constants.POLLING_INTERVAL/60)
-                regional_aqi_mean = get_regional_pa_data(bbox)
+                regional_aqi_mean = get_regional_pa_data(bbox, local_pm25_aqi)
                 polling_start: datetime = datetime.datetime.now()
                 if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list), max_data_points):
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
