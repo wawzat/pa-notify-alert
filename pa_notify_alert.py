@@ -238,6 +238,7 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
         file_paths[file_path] = loaded_datetime
     for k, v in file_paths.items():
         print(f'{k}: {v}')
+        print(tuple(file_paths.values()))
     return tuple(file_paths.values())
 
 
