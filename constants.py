@@ -7,7 +7,7 @@ MAX_DAY_OF_WEEK = 4
 REPORTING_TIME_ZONE = 'America/Los_Angeles'
 
 # Durations in seconds
-STATUS_INTERVAL: int = 30
+STATUS_INTERVAL: int = 1
 POLLING_INTERVAL: int = 120
 NOTIFICATION_INTERVAL: int = 28800     # 8 hours
 

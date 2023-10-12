@@ -140,7 +140,7 @@ def status_update(polling_et: int,
     text_notification_hours = int((constants.NOTIFICATION_INTERVAL - text_notification_et) / 3600)
     text_notification_minutes = int((constants.NOTIFICATION_INTERVAL - text_notification_et) / 60) % 60
     text_notification_seconds = int((constants.NOTIFICATION_INTERVAL - text_notification_et) % 60)
-    email_notification_hours = int((constants.NOTIFICATION_INTERVAL - text_notification_et) / 3600)
+    email_notification_hours = int((constants.NOTIFICATION_INTERVAL - email_notification_et) / 3600)
     email_notification_minutes = int((constants.NOTIFICATION_INTERVAL - email_notification_et) / 60) % 60
     email_notification_seconds = int((constants.NOTIFICATION_INTERVAL - email_notification_et) % 60)
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
@@ -240,7 +240,6 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
             datetime_str = current_datetime
         loaded_datetime = datetime.datetime.fromisoformat(datetime_str).replace(tzinfo=datetime.timezone.utc)
         file_paths[file_path] = loaded_datetime
-    print(f'{key} - {file_paths[key]}' for key in keys_order)
     return [file_paths[key] for key in keys_order]
 
 
