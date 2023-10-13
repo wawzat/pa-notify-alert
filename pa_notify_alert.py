@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231010
+# James S. Lucas - 20231013
 
 import os
 import sys
@@ -357,6 +357,7 @@ def get_regional_pa_data(bbox: List[float], local_aqi: float) -> pd.DataFrame:
                 )
             mean_ipm25 = df['Ipm25'].mean()
         else:
+            # All of the sensors had low confidence so df was empty.
             mean_ipm25 = local_aqi
 
     else:
@@ -537,9 +538,9 @@ def email_notify(
         subject = f'Daily {constants.SUBJECT}'
     else:
         subject = constants.SUBJECT
-    if pm_aqi_roc < 0:
+    if round(pm_aqi_roc, 1) < 0:
         rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc):.1f} AQI points per minute since the previous reading'
-    elif pm_aqi_roc > 0:
+    elif round(pm_aqi_roc, 1) > 0:
         rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc):.1f} AQI points per minute since the previous reading'
     else:
         rate_of_change_text = f'Air quality has not changed since the previous reading'
