@@ -34,9 +34,9 @@ PA_MAP_EMAIL_LINK = '<a href="https://map.purpleair.com/1/i/mAQI/a0/p604800/cC5?
 EMAIL_DISCLAIMER_PT1 = 'The information provided in this message is for notification purposes only. ' \
             'Prior to making any decisions, please independently verify the information ' \
             'is accurate through official sources.'
-EMAIL_DISCLAIMER_PT2 = 'PM 2.5 AQI and PM 2.5 Average AQI values are based on EPA conversion. ' \
+EMAIL_DISCLAIMER_PT2 = 'PM 2.5 AQI values are based on the EPA conversion. ' \
             ' (more accurate for wood smoke, reads low for mineral dust). '
-EMAIL_DISCLAIMER_PT3 = 'AQI provided in this notification is based on PM 2.5 particulates only. ' \
+EMAIL_DISCLAIMER_PT3 = 'The AQI provided in this notification is based on PM 2.5 particulates only. ' \
             ' Other pollutants regulated by the Clean Air Act including ' \
             'ground-level ozone, carbon monoxide, sulfur dioxide, and nitrogen dioxide ' \
             'may also be present but are not included in this notification.'
