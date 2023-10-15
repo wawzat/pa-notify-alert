@@ -622,7 +622,6 @@ def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, n
     Returns:
         bool: True if the notification criteria are met, False otherwise.
     """
-    # Check if the day of the week is a weekday
     if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
         return False
 
@@ -681,8 +680,9 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime, num_
         daily_text_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S') and \
-        num_data_points >= 4
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+    if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
+        text_criteria = text_criteria and num_data_points >= 4
     return text_criteria
 
 
@@ -704,8 +704,9 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
         daily_email_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S') and \
-        num_data_points >= 4
+        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+    if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
+        email_criteria = email_criteria and num_data_points >= 4
     return email_criteria
 
 
