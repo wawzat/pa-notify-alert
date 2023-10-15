@@ -808,20 +808,16 @@ def initialize():
         bbox.append(path)
     email_list, text_list, admin_text_list, admin_email_list = com_lists()
     status_start, polling_start =  datetime.datetime.now(), datetime.datetime.now()
-    sensor_id = ''
-    sensor_name = ''
-    local_pm25_aqi = 0
     local_pm25_aqi_avg = 0
-    confidence = ''
-    time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
-    local_time_stamp = datetime.datetime.now(time_zone)
+    local_pm25_avg_duration = 2
     pm_aqi_roc = 0
     regional_aqi_mean = 0
     local_pm25_aqi_list = []
     max_data_points = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp(constants.FILE_PATHS)
+    sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
-        sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, confidence, local_time_stamp, pm_aqi_roc, 
+        sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_avg_duration, confidence, local_time_stamp, pm_aqi_roc, 
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
         last_email_notification, last_daily_text_notification, last_daily_email_notification)
 
@@ -832,7 +828,7 @@ def main():
             sleep(.1)
             polling_et, status_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, last_text_notification, last_email_notification)
             if status_et >= constants.STATUS_INTERVAL:
-                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
+                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
             if polling_criteria_met(polling_et) == (True, True):
                 sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
                 if local_pm25_aqi != 'ERROR':
