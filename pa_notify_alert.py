@@ -466,8 +466,9 @@ def text_notify(is_daily: bool,
                 f' AQI: {local_pm25_aqi} \n'
                 f' {rate_of_change_text} \n'
                 f' {local_pm25_aqi_avg_duration:.0f} Min. Avg AQI: {local_pm25_aqi_avg:.0f} \n' 
-                f' {confidence_text}'
-                f' Neighborhood avg AQI: {regional_aqi_mean:.0f} \n \n'
+                f' {confidence_text} '
+                f' Neighborhood \n'
+                f'   Avg AQI: {regional_aqi_mean:.0f} \n \n'
                 f'{constants.PA_MAP_TEXT_LINK} '
     )
     message_sid_dict = {}
