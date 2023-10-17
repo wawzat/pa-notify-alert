@@ -2,8 +2,8 @@ pandas
 numpy
 pytz
 requests
-urllib3
 tabulate
 ezgmail
 twilio
 tzdata
+urllib3
