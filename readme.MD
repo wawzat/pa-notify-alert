@@ -22,7 +22,7 @@
         - [Twilio Programmable Messaging Quickstart - Python](https://www.twilio.com/docs/sms/quickstart/python)
     - Requires a Google developer account for email.   
         - [EZGmail Setup](https://pypi.org/project/EZGmail/)
-        - EZGmail requires two JSON files in its program folder: "credentials.json" and "token.json."  
+        - EZGmail requires two JSON files in the program folder: "credentials.json" and "token.json."  
            - To obtain "credentials.json," follow the provided instructions.
            - For "token.json", also follow the instructions, but if you're running the program on a non-graphical or non-web browser-enabled server, run "get_gmail_credentials.py". It will display a URL in your terminal. Copy the URL to a machine with a web browser, authenticate with Google, and then transfer "token.json" to your server using FTP or another method.
     - Requires read key from PurpleAir.   
