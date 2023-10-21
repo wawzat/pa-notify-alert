@@ -456,7 +456,7 @@ def text_notify(is_daily: bool,
     if confidence == 'LOW':
         confidence_text = '\n Sensor accuracy is low and may be inaccurate. \n \n'
     else:
-        confidence_text = ' '
+        confidence_text = '\n'
     text_body = (
                 f'{first_line}'
                 f'AQ Notification \n'
