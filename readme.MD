@@ -20,7 +20,7 @@
 - Information on obtaining API keys and setting up services for Twilio, Gmail and PurpleAir
     - Requires Twilio account for text messaging.   
         - [Twilio Programmable Messaging Quickstart - Python](https://www.twilio.com/docs/sms/quickstart/python)
-    - Setting up the Gmail app requires a Google developer account.   
+    - Requires a Google developer account for email.   
         - [EZGmail Setup](https://pypi.org/project/EZGmail/)
         - EZGmail requires two JSON files in its program folder: "credentials.json" and "token.json."  
            - To obtain "credentials.json," follow the provided instructions.
