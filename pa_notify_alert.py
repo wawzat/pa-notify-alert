@@ -456,7 +456,7 @@ def text_notify(is_daily: bool,
     if confidence == 'LOW':
         confidence_text = '\n Sensor accuracy is low and may be inaccurate. \n \n'
     else:
-        confidence_text = ''
+        confidence_text = ' '
     text_body = (
                 f'{first_line}'
                 f'AQ Notification \n'
@@ -466,7 +466,7 @@ def text_notify(is_daily: bool,
                 f' AQI: {local_pm25_aqi} \n'
                 f' {rate_of_change_text} \n'
                 f' {local_pm25_aqi_avg_duration:.0f} Min. Avg AQI: {local_pm25_aqi_avg:.0f} \n' 
-                f' {confidence_text} \n'
+                f' {confidence_text} '
                 f'Neighborhood \n'
                 f'\u00A0\u00A0Avg AQI: {regional_aqi_mean:.0f} \n \n'
                 f'{constants.PA_MAP_TEXT_LINK} '
