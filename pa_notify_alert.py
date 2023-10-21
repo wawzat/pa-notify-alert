@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231013
+# James S. Lucas - 20231021
 
 import os
 import sys
