@@ -18,7 +18,7 @@
 
 - Edit config.ini with text and email contact info. PurpleAir, Twilio, Gmail API keys and regional bounding box.
 - Information on obtaining API keys and setting up services for Twilio, Gmail and PurpleAir
-    - Requires Twilio account for text messaging.   
+    - Setting up the Gmail app requires a Google developer account..   
         - [Twilio Programmable Messaging Quickstart - Python](https://www.twilio.com/docs/sms/quickstart/python)
     - Requires a Google developer Gmail app to be setup.   
         - [EZGmail Setup](https://pypi.org/project/EZGmail/)
