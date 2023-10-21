@@ -29,7 +29,7 @@ config = ConfigParser()
 config.read('config.ini')
 
 
-# Gets or creates a logger
+# Create a logger
 logger = logging.getLogger(__name__)  
 # set log level
 logger.setLevel(logging.WARNING)
@@ -117,7 +117,7 @@ def status_update(polling_et: int,
                   max_data_points: int,
                   num_data_points: int) -> datetime:
     """
-    Prints the status update table with the current status of the PurpleAir sensor.
+    Prints a table of program status information.
 
     Args:
         polling_et (int): The elapsed time since the last polling.
@@ -221,10 +221,6 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
     Returns:
     tuple: A tuple containing the datetime values read from the text files.
     """
-    keys_order = ['last_text_notification.txt',
-                  'last_email_notification.txt',
-                  'last_daily_text_notification.txt',
-                  'last_daily_email_notification.txt']
     for file_path, v in file_paths.items():
         # Read the datetime from the text file
         try:
@@ -240,6 +236,10 @@ def read_timestamp(file_paths: Dict[str,str]) -> tuple:
             datetime_str = current_datetime
         loaded_datetime = datetime.datetime.fromisoformat(datetime_str).replace(tzinfo=datetime.timezone.utc)
         file_paths[file_path] = loaded_datetime
+    keys_order = ['last_text_notification.txt',
+                  'last_email_notification.txt',
+                  'last_daily_text_notification.txt',
+                  'last_daily_email_notification.txt']
     return [file_paths[key] for key in keys_order]
 
 
@@ -251,15 +251,15 @@ def is_pdt() -> bool:
         bool: True if it is currently PDT, False if it is currently PST.
     """
     now = datetime.datetime.now(datetime.timezone.utc)
-    is_pdt_value = False
     if now.astimezone(datetime.timezone(datetime.timedelta(hours=-7))).dst() != datetime.timedelta(0):
-        is_pdt_value = True
-    return is_pdt_value
+        return True
+    else:
+        return False
 
 
 def get_local_pa_data(sensor_id: int) -> tuple:
     """
-    Retrieves data from a PurpleAir sensor with the given sensor ID and calculates the local AQI.
+    Retrieves data from a PurpleAir sensor with the given sensor ID and calculates the AQI.
 
     Args:
         sensor_id (int): The ID of the PurpleAir sensor to retrieve data from.
@@ -594,10 +594,8 @@ def polling_criteria_met(polling_et: int) -> bool:
     POLLING_START_TIME = constants.POLLING_START_TIME
     POLLING_END_TIME = constants.POLLING_END_TIME
 
-    is_pdt_value = is_pdt()
-    
     # Adjust time values for PST
-    if not is_pdt_value:
+    if not is_pdt():
         polling_start_time = datetime.datetime.strptime(POLLING_START_TIME, '%H:%M:%S')
         polling_start_time -= datetime.timedelta(hours=1)
         POLLING_START_TIME = polling_start_time.strftime('%H:%M:%S')
@@ -631,10 +629,8 @@ def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, n
     OPEN_ALERT_START_TIME = constants.OPEN_ALERT_START_TIME
     OPEN_ALERT_END_TIME = constants.OPEN_ALERT_END_TIME
 
-    is_pdt_value = is_pdt()
-
-    # Adjust time values for PST
-    if not is_pdt_value:
+    # Adjust time values for PST if needed
+    if not is_pdt():
         pre_open_alert_start_time = datetime.datetime.strptime(PRE_OPEN_ALERT_START_TIME, '%H:%M:%S')
         pre_open_alert_start_time -= datetime.timedelta(hours=1)
         PRE_OPEN_ALERT_START_TIME = pre_open_alert_start_time.strftime('%H:%M:%S')
@@ -673,11 +669,8 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime, num_
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    #if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
-        #return False
-    is_pdt_value = is_pdt()
-    # Adjust time values for PST
-    if not is_pdt_value:
+    # Adjust time values for PST if needed
+    if not is_pdt():
         daily_text_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
@@ -697,11 +690,8 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    #if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
-        #return False
-    is_pdt_value = is_pdt()
-    # Adjust time values for PST
-    if not is_pdt_value:
+    # Adjust time values for PST if needed
+    if not is_pdt():
         daily_email_notification += datetime.timedelta(hours=1)
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
@@ -713,7 +703,7 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
 
 def com_lists() -> tuple:
     """
-    A function that reads the email and text lists from the config file.
+    Returns the the email and text lists from the config file.
 
     Args:
         None
@@ -755,7 +745,7 @@ def com_lists() -> tuple:
 
 def check_logs():
     """
-    Check the status of two log files and create them if they don't exist.
+    Check the status of log files and create them if they don't exist.
 
     Args:
         None
