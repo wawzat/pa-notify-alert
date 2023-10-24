@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231021
+# James S. Lucas - 20231024
 
 import os
 import sys
@@ -467,7 +467,7 @@ def text_notify(is_daily: bool,
                 f' {rate_of_change_text} \n'
                 f' {local_pm25_aqi_avg_duration:.0f} Min. Avg AQI: {local_pm25_aqi_avg:.0f} \n' 
                 f'\u00A0Neighborhood \n'
-                f'\u00A0\u00A0Avg AQI: {regional_aqi_mean:.0f} \n'
+                f'\u00A0\u00A0\u00A0Avg AQI: {regional_aqi_mean:.0f} \n'
                 f' {confidence_text} '
                 f'{constants.PA_MAP_TEXT_LINK} '
     )
