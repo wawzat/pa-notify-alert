@@ -569,7 +569,6 @@ def email_notify(
         with open(os.path.join(os.getcwd(), '1_email_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
-    write_timestamp(utc_now, 'email')
     if is_daily:
         write_timestamp(utc_now, 'daily_email')
     else:
