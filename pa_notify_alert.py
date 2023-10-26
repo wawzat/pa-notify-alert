@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231024
+# James S. Lucas - 20231026
 
 import os
 import sys
@@ -542,11 +542,11 @@ def email_notify(
     else:
         subject = constants.SUBJECT
     if round(pm_aqi_roc, 1) < 0:
-        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc):.1f} AQI points per minute since the previous reading'
+        rate_of_change_text = f'Air quality has decreased by {abs(pm_aqi_roc):.1f} AQI per minute over the last {local_pm25_aqi_avg_duration} minutes'
     elif round(pm_aqi_roc, 1) > 0:
-        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc):.1f} AQI points per minute since the previous reading'
+        rate_of_change_text = f'Air quality has increased by {abs(pm_aqi_roc):.1f} AQI per minute over the last {local_pm25_aqi_avg_duration} minutes'
     else:
-        rate_of_change_text = f'Air quality has not changed since the previous reading'
+        rate_of_change_text = f'Air quality has not changed in the last {local_pm25_aqi_avg_duration} minutes'
     if confidence == 'LOW':
         confidence_text = 'Sensor accuracy is low, the sensor may need cleaning. Please obtain accurate data through official sources. <br>'
     else:
