@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231026
+# James S. Lucas - 20231027
 
 import os
 import sys
@@ -454,7 +454,7 @@ def text_notify(is_daily: bool,
     Returns:
     - datetime: The UTC timestamp of the text notification.
     """
-    rate_of_change_text = f'ROC {pm_aqi_roc:.1f} AQI /hr.'
+    rate_of_change_text = f'Change = {pm_aqi_roc:.1f} AQI /hr.'
     if confidence == 'LOW':
         confidence_text = '\n Sensor accuracy is low and may be inaccurate. \n \n'
     else:
