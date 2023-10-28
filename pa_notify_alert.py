@@ -29,7 +29,7 @@ config = ConfigParser()
 config.read('config.ini')
 
 
-# Create a logger
+# Create a logger for manual logging
 logger = logging.getLogger(__name__)  
 # set log level
 logger.setLevel(logging.WARNING)
@@ -40,9 +40,17 @@ file_handler.setFormatter(formatter)
 # add file handler to logger
 logger.addHandler(file_handler)
 
+# Create a logger for urllib3
+urllib3_logger = logging.getLogger('urllib3')
+urllib3_logger.setLevel(logging.WARNING)
+file_handler = logging.FileHandler('pa_notify_alert_urllib3_log.txt')
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
+file_handler.setFormatter(formatter)
+urllib3_logger.addHandler(file_handler)
+
 # Setup requests session with retry for PurpleAir API
 session = requests.Session()
-retry = Retry(total=10, backoff_factor=1.0)
+retry = Retry(total=10, backoff_factor=1.0, status_forcelist=tuple(range(401, 600)))
 adapter = HTTPAdapter(max_retries=retry)
 PURPLEAIR_READ_KEY = config.get('purpleair', 'PURPLEAIR_READ_KEY')
 if PURPLEAIR_READ_KEY == '':
