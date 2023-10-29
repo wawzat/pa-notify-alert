@@ -154,21 +154,21 @@ def status_update(polling_et: int,
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
     pad = ' '
     table_data = [
-        ['Polling:', f'{polling_minutes:02d}:{polling_seconds:02d}'],
-        ['Text / Email Notification:', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d} / {email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
-        ['Num / Max Data Points:', f'{num_data_points} / {max_data_points}'],
+        ['Polling', f'{polling_minutes:02d}:{polling_seconds:02d}'],
+        ['Text / Email Notification', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d} / {email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
+        ['Num / Max Data Points', f'{num_data_points} / {max_data_points}'],
         [' ', ' '],
-        ['Time Now:', f'__Start__| {datetime.datetime.utcnow().strftime("%H:%M:%S")} |___End___'],
-        ['Polling:', f'{constants.POLLING_START_TIME} |{pad:^10}| {constants.POLLING_END_TIME}'],
-        ['Pre-Open Alert:', f'{constants.PRE_OPEN_ALERT_START_TIME} |{pad:^10}| {constants.PRE_OPEN_ALERT_END_TIME}'],
-        ['Open Alert:', f'{constants.OPEN_ALERT_START_TIME} |{pad:^10}| {constants.OPEN_ALERT_END_TIME}'],
+        ['Time Now', f'__Start__| {datetime.datetime.utcnow().strftime("%H:%M:%S")} |___End___'],
+        ['Polling', f'{constants.POLLING_START_TIME} |{pad:^10}| {constants.POLLING_END_TIME}'],
+        ['Pre-Open Alert', f'{constants.PRE_OPEN_ALERT_START_TIME} |{pad:^10}| {constants.PRE_OPEN_ALERT_END_TIME}'],
+        ['Open Alert', f'{constants.OPEN_ALERT_START_TIME} |{pad:^10}| {constants.OPEN_ALERT_END_TIME}'],
         [' ', ' '],
-        ['PM 2.5 AQI:', f'{local_pm25_aqi:.0f}'],
-        ['PM 2.5 AQI Average:', f'{local_pm25_aqi_avg:.0f}'],
-        ['Regional AQI:', f'{regional_aqi_mean:.0f}'],
-        ['Gan Sensor Confidence:', f'{confidence}'],
-        ['PM 2.5 AQI Rate of Change:', f'{pm_aqi_roc:.5f}'],
-        ['Timestamp:', f'{time_stamp}']
+        ['PM 2.5 AQI', f'{local_pm25_aqi:.0f}'],
+        ['PM 2.5 AQI Average', f'{local_pm25_aqi_avg:.0f}'],
+        ['Regional AQI', f'{regional_aqi_mean:.0f}'],
+        ['Gan Sensor Confidence', f'{confidence}'],
+        ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.5f}'],
+        ['Timestamp', f'{time_stamp}']
     ]
     print(tabulate(table_data, headers=['Description', 'Status'], tablefmt='orgtbl'))
     print("\033c", end="")
