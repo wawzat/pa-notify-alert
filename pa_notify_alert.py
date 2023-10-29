@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231027
+# James S. Lucas - 20231029
 
 import os
 import sys
@@ -152,15 +152,16 @@ def status_update(polling_et: int,
     email_notification_minutes = int((constants.NOTIFICATION_INTERVAL - email_notification_et) / 60) % 60
     email_notification_seconds = int((constants.NOTIFICATION_INTERVAL - email_notification_et) % 60)
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
+    pad = ' '
     table_data = [
         ['Polling:', f'{polling_minutes:02d}:{polling_seconds:02d}'],
         ['Text / Email Notification:', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d} / {email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
         ['Num / Max Data Points:', f'{num_data_points} / {max_data_points}'],
         [' ', ' '],
         ['Time Now:', f'__Start__| {datetime.datetime.utcnow().strftime("%H:%M:%S")} |___End____'],
-        ['Polling:', f'{constants.POLLING_START_TIME} |          | {constants.POLLING_END_TIME}'],
-        ['Pre-Open Alert:', f'{constants.PRE_OPEN_ALERT_START_TIME} |          | {constants.PRE_OPEN_ALERT_END_TIME}'],
-        ['Open Alert:', f'{constants.OPEN_ALERT_START_TIME} |          | {constants.OPEN_ALERT_END_TIME}'],
+        ['Polling:', f'{constants.POLLING_START_TIME} |{pad:^10}| {constants.POLLING_END_TIME}'],
+        ['Pre-Open Alert:', f'{constants.PRE_OPEN_ALERT_START_TIME} |{pad:^10}| {constants.PRE_OPEN_ALERT_END_TIME}'],
+        ['Open Alert:', f'{constants.OPEN_ALERT_START_TIME} |{pad:^10}| {constants.OPEN_ALERT_END_TIME}'],
         [' ', ' '],
         ['PM 2.5 AQI:', f'{local_pm25_aqi:.0f}'],
         ['PM 2.5 AQI Average:', f'{local_pm25_aqi_avg:.0f}'],
