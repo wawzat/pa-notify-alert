@@ -16,7 +16,6 @@ from time import sleep
 import pytz
 from tabulate import tabulate
 import logging
-from typing import List, Dict
 from conversions import AQI, EPA
 import constants
 from configparser import ConfigParser
@@ -222,7 +221,7 @@ def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
         file.write(time_stamp.strftime('%Y-%m-%d %H:%M:%S%z'))
 
 
-def read_timestamp(file_paths: Dict[str,str]) -> tuple:
+def read_timestamp(file_paths: dict[str,str]) -> tuple:
     """
     Reads the datetime from several text files and returns them as a tuple.
     If the text file does not exist, it creates a new file with the current datetime minus 24 hours.
@@ -318,12 +317,12 @@ def get_local_pa_data(sensor_id: int) -> tuple:
     return sensor_id, sensor_name, local_aqi, confidence, time_stamp
 
 
-def get_regional_pa_data(bbox: List[float], local_aqi: float) -> pd.DataFrame:
+def get_regional_pa_data(bbox: list[float], local_aqi: float) -> pd.DataFrame:
     """
     A function that queries the PurpleAir API for outdoor sensor data within a given bounding box and time frame.
 
     Args:
-        bbox (List[float]): A list of four floats representing the bounding box of the area of interest.
+        bbox (list[float]): A list of four floats representing the bounding box of the area of interest.
             The order is [northwest longitude, southeast latitude, southeast longitude, northwest latitude].
 
     Returns:
@@ -340,7 +339,7 @@ def get_regional_pa_data(bbox: List[float], local_aqi: float) -> pd.DataFrame:
         'nwlat': bbox[3]
     }
     url: str = root_url.format(**params)
-    cols: List[str] = ['time_stamp', 'sensor_index'] + [col for col in params['fields'].split(',')]
+    cols: list[str] = ['time_stamp', 'sensor_index'] + [col for col in params['fields'].split(',')]
     try:
         response = session.get(url)
     except requests.exceptions.RequestException as e:
@@ -408,7 +407,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def aqi_rate_of_change(data_points: List[float]) -> float:
+def aqi_rate_of_change(data_points: list[float]) -> float:
     """
     Calculates the rate of change of AQI (Air Quality Index) based on the given data points.
 
@@ -433,7 +432,7 @@ def text_notify(is_daily: bool,
                 first_line: str,
                 sensor_id: int,
                 sensor_name: str,
-                text_list: List[str],
+                text_list: list[str],
                 local_time_stamp: datetime,
                 local_pm25_aqi: float,
                 pm_aqi_roc: float,
@@ -449,7 +448,7 @@ def text_notify(is_daily: bool,
     - first_line (str): The first line of the text message.
     - sensor_id (int): The ID of the sensor.
     - sensor_name (str): The name of the sensor.
-    - text_list (List[str]): A list of phone numbers to send the text message to.
+    - text_list (list[str]): A list of phone numbers to send the text message to.
     - local_time_stamp (datetime): The local timestamp of the air quality reading.
     - local_pm25_aqi (float): The local PM2.5 AQI reading.
     - pm_aqi_roc (float): The rate of change of the PM2.5 AQI reading.
@@ -510,7 +509,7 @@ def text_notify(is_daily: bool,
 def email_notify(
     is_daily: bool,
     first_line: str,
-    email_list: List[str],
+    email_list: list[str],
     local_time_stamp: datetime,
     sensor_id: str,
     sensor_name: str,
@@ -526,7 +525,7 @@ def email_notify(
     Args:
         is_daily (bool): Whether the email is a daily summary or not.
         first_line (str): The first line of the email body.
-        email_list (List[str]): A list of email addresses to send the notification to.
+        email_list (list[str]): A list of email addresses to send the notification to.
         local_time_stamp (datetime): The local timestamp of the air quality reading.
         sensor_id (str): The ID of the PurpleAir sensor.
         sensor_name (str): The name of the PurpleAir sensor.
