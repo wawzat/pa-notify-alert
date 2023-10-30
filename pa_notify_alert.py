@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231029
+# James S. Lucas - 20231030
 
 import os
 import sys
@@ -28,7 +28,6 @@ from twilio.base.exceptions import TwilioRestException
 config = ConfigParser()
 config.read('config.ini')
 
-
 # Create a logger for manual logging
 logger = logging.getLogger(__name__)  
 # set log level
@@ -49,18 +48,17 @@ file_handler.setFormatter(formatter)
 urllib3_logger.addHandler(file_handler)
 
 # Setup requests session with retry for PurpleAir API
-session = requests.Session()
-retry = Retry(total=10, backoff_factor=1.0, status_forcelist=tuple(range(401, 600)))
-adapter = HTTPAdapter(max_retries=retry)
 PURPLEAIR_READ_KEY = config.get('purpleair', 'PURPLEAIR_READ_KEY')
 if PURPLEAIR_READ_KEY == '':
     logger.error('Error: PURPLEAIR_READ_KEY not set in config.ini')
     print('ERROR: PURPLEAIR_READ_KEY not set in config.ini')
     sys.exit(1)
+session = requests.Session()
+retry = Retry(total=10, backoff_factor=1.0, status_forcelist=tuple(range(401, 600)))
+adapter = HTTPAdapter(max_retries=retry)
 session.headers.update({'X-API-Key': PURPLEAIR_READ_KEY})
 session.mount('http://', adapter)
 session.mount('https://', adapter)
-
 
 GMAIL_API_CREDENTIALS = config.get('google', 'GMAIL_API_CREDENTIAL_JSON_PATH')
 if GMAIL_API_CREDENTIALS == '':
@@ -826,6 +824,7 @@ def initialize():
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
         last_email_notification, last_daily_text_notification, last_daily_email_notification)
 
+
 def main():
     bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
     while True:
@@ -858,7 +857,6 @@ def main():
             if daily_email_notification_criteria_met(last_daily_email_notification, len(local_pm25_aqi_list)):
                 if len(email_list) > 0:
                     last_daily_email_notification = email_notify(True, 'Daily Notification <br>', admin_email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
-
         except KeyboardInterrupt:
             sys.exit(0)
 
