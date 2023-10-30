@@ -75,7 +75,7 @@ ezgmail.init(tokenFile=EZGMAIL_API_TOKEN, credentialsFile=GMAIL_API_CREDENTIALS)
 twilio_client = Client(config.get('twilio', 'ACCOUNT_SID'), config.get('twilio', 'AUTH_TOKEN'))
 
 
-def retry(max_attempts=3, delay=2, escalation=10, exception=(Exception,)):
+def retry(max_attempts: int = 3, delay: int = 2, escalation: int = 10, exception=(Exception,)):
     """
     A decorator function that retries a function call a specified number of times if it raises a specified exception.
 
@@ -616,7 +616,10 @@ def polling_criteria_met(polling_et: int) -> bool:
         datetime.datetime.utcnow().strftime('%H:%M:%S') <= POLLING_END_TIME
 
 
-def notification_criteria_met(local_pm25_aqi: float, regional_aqi_mean: float, num_data_points: int, max_data_points: int) -> bool:
+def notification_criteria_met(local_pm25_aqi: float,
+                              regional_aqi_mean: float,
+                              num_data_points: int,
+                              max_data_points: int) -> bool:
     """
     Determines if the notification criteria are met based on the local PM2.5 AQI and number of data points collected.
 
@@ -750,7 +753,7 @@ def com_lists() -> tuple:
     return email_list, text_list, admin_text_list, admin_email_list
 
 
-def check_logs():
+def check_logs() -> None:
     """
     Check the status of log files and create them if they don't exist.
 
@@ -775,7 +778,7 @@ def check_logs():
                 pass
 
 
-def initialize():
+def initialize() -> tuple:
     """
     Initializes the necessary variables for the PurpleAir notification alert system.
 
@@ -804,18 +807,18 @@ def initialize():
         - last_daily_email_notification (datetime): The timestamp of the last daily email notification.
     """
     check_logs()
-    bbox = [] 
-    bbox_items = config.items('bbox')
-    for key, path in bbox_items:
-        bbox.append(path)
+    bbox: list[float] = [] 
+    bbox_items: dict[str,float] = config.items('bbox')
+    for key, coord in bbox_items:
+        bbox.append(coord)
     email_list, text_list, admin_text_list, admin_email_list = com_lists()
     status_start, polling_start =  datetime.datetime.now(), datetime.datetime.now()
-    local_pm25_aqi_avg = 0
-    local_pm25_aqi_avg_duration = 2
-    pm_aqi_roc = 0
-    regional_aqi_mean = 0
-    local_pm25_aqi_list = []
-    max_data_points = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
+    local_pm25_aqi_avg: float = 0
+    local_pm25_aqi_avg_duration: int = 2
+    pm_aqi_roc: float = 0
+    regional_aqi_mean: float = 0
+    local_pm25_aqi_list: list[float] = []
+    max_data_points: int = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp(constants.FILE_PATHS)
     sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
@@ -824,7 +827,7 @@ def initialize():
         last_email_notification, last_daily_text_notification, last_daily_email_notification)
 
 
-def main():
+def main() -> None:
     bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
     while True:
         try:
