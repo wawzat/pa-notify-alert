@@ -110,7 +110,8 @@ def retry(max_attempts: int = 3, delay: int = 2, escalation: int = 10, exception
     return decorator
 
 
-def status_update(polling_et: int,
+def status_update(sensor_name: str,
+                  polling_et: int,
                   text_notification_et: int,
                   email_notification_et: int,
                   local_time_stamp: datetime,
@@ -163,7 +164,7 @@ def status_update(polling_et: int,
         ['PM 2.5 AQI', f'{local_pm25_aqi:.0f}'],
         ['PM 2.5 AQI Average', f'{local_pm25_aqi_avg:.0f}'],
         ['Regional AQI', f'{regional_aqi_mean:.0f}'],
-        ['Gan Sensor Confidence', f'{confidence}'],
+        [f'{sensor_name} Sensor Confidence', f'{confidence}'],
         ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.5f}'],
         ['Timestamp', f'{time_stamp}']
     ]
@@ -824,7 +825,7 @@ def main() -> None:
             sleep(.1)
             polling_et, status_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, last_text_notification, last_email_notification)
             if status_et >= constants.STATUS_INTERVAL:
-                status_start = status_update(polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
+                status_start = status_update(sensor_name, polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
             if polling_criteria_met(polling_et) == (True, True):
                 sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
                 if local_pm25_aqi != 'ERROR':
