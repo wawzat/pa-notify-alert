@@ -278,7 +278,7 @@ def get_local_pa_data(sensor_id: int) -> tuple:
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
         'sensor_id': sensor_id,
-        'fields': "name,humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b"
+        'fields': "humidity,pm2.5_cf_1_a,pm2.5_cf_1_b"
     }
     url: str = root_url.format(**params)
     try:
@@ -290,15 +290,13 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         url_data = response.content
         json_data = json.loads(url_data)
         sensor_data = json_data['sensor']
-        sensor_name = sensor_data['name']
-        pm25_atm_a = sensor_data['pm2.5_atm_a']
-        pm25_atm_b = sensor_data['pm2.5_atm_b']
+        sensor_name = config.get('purpleair', 'LOCAL_SENSOR_NAME').strip("'")
         pm25_cf1_a = sensor_data['pm2.5_cf_1_a']
         pm25_cf1_b = sensor_data['pm2.5_cf_1_b']
         humidity = sensor_data['humidity']
         # Calculate sensor confidence
-        pm_dif_pct = abs(pm25_atm_a - pm25_atm_b) / ((pm25_atm_a + pm25_atm_b + 1e-6) / 2)
-        pm_dif_abs = abs(pm25_atm_a - pm25_atm_b)
+        pm_dif_pct = abs(pm25_cf1_a - pm25_cf1_b) / ((pm25_cf1_a + pm25_cf1_b + 1e-6) / 2)
+        pm_dif_abs = abs(pm25_cf1_a - pm25_cf1_b)
         if pm_dif_pct >= 0.7 or pm_dif_abs >= 5:
             confidence = 'LOW'
             pm_cf1 = max(pm25_cf1_a, pm25_cf1_b)
@@ -330,7 +328,7 @@ def get_regional_pa_data(bbox: list[float], local_aqi: float) -> pd.DataFrame:
     """
     root_url: str = 'https://api.purpleair.com/v1/sensors/?fields={fields}&location_type={location_type}&max_age={max_age}&nwlng={nwlng}&nwlat={nwlat}&selng={selng}&selat={selat}'
     params = {
-        'fields': "humidity,pm2.5_atm_a,pm2.5_atm_b,pm2.5_cf_1_a,pm2.5_cf_1_b",
+        'fields': "humidity,pm2.5_cf_1_a,pm2.5_cf_1_b",
         'location_type': "0",
         'max_age': f"{constants.POLLING_INTERVAL * 3}",
         'nwlng': bbox[0],
@@ -376,26 +374,18 @@ def get_regional_pa_data(bbox: list[float], local_aqi: float) -> pd.DataFrame:
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Removes rows from the input DataFrame where the difference between the PM2.5 atmospheric concentration readings
+    Removes rows from the input DataFrame where the difference between the PM2.5 readings
     from two sensors is either greater than or equal to 5 or greater than or equal to 70% of the average of the two readings,
     or greater than 2000.
 
     Args:
-        df (pd.DataFrame): The input DataFrame containing the PM2.5 atmospheric concentration readings from two sensors.
+        df (pd.DataFrame): The input DataFrame containing the PM2.5 readings from two sensors.
 
     Returns:
-        A new DataFrame with the rows removed where the difference between the PM2.5 atmospheric concentration readings
+        A new DataFrame with the rows removed where the difference between the PM2.5 readings
         from two sensors is either greater than or equal to 5 or greater than or equal to 70% of the average of the two readings 
         (US EPA Conversion data cleaning criteria), or greater than 2000.
     """
-    df = df.drop(df[df['pm2.5_atm_a'] > 2000].index)
-    df = df.drop(df[df['pm2.5_atm_b'] > 2000].index)
-    df = df.drop(df[abs(df['pm2.5_atm_a'] - df['pm2.5_atm_b']) >= 5].index)
-    df = df.drop(
-        df[abs(df['pm2.5_atm_a'] - df['pm2.5_atm_b']) /
-            ((df['pm2.5_atm_a'] + df['pm2.5_atm_b'] + 1e-6) / 2) >= 0.7
-        ].index
-    )
     df = df.drop(df[df['pm2.5_cf_1_a'] > 2000].index)
     df = df.drop(df[df['pm2.5_cf_1_b'] > 2000].index)
     df = df.drop(df[abs(df['pm2.5_cf_1_a'] - df['pm2.5_cf_1_b']) >= 5].index)
