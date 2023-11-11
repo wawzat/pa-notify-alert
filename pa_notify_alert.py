@@ -485,7 +485,8 @@ def text_notify(is_daily: bool,
         status = updated_message.status
         status_dict[recipient] = status
     for recipient, status in status_dict.items():
-        log_text = f'{local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - {status}'
+        time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
+        log_text = f'{datetime.datetime.now(time_zone).strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - {status}'
         with open(os.path.join(os.getcwd(), '1_text_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
@@ -564,7 +565,8 @@ def email_notify(
     )
     for recipient in email_list:
         ezgmail.send(recipient, subject, email_body, attachment_list, mimeSubtype='html')
-        log_text = f'{local_time_stamp.strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - Sent'
+        time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
+        log_text = f'{datetime.datetime.now(time_zone).strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - Sent'
         with open(os.path.join(os.getcwd(), '1_email_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
     utc_now = datetime.datetime.utcnow()
