@@ -168,7 +168,7 @@ def status_update(sensor_name: str,
         [' ', ' '],
         ['PM 2.5 AQI', f'{local_pm25_aqi:.0f}'],
         ['PM 2.5 AQI Average', f'{local_pm25_aqi_avg:.0f}'],
-        ['PM 2.5 AQI List', f'{aqi_string}']
+        ['PM 2.5 AQI List', f'{aqi_string}'],
         ['Regional AQI', f'{regional_aqi_mean:.0f}'],
         [f'{sensor_name} Sensor Confidence', f'{confidence}'],
         ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.5f}'],
