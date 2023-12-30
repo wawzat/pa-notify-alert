@@ -153,7 +153,8 @@ def status_update(sensor_name: str,
     aqi_string = ''
     for point in local_pm25_aqi_list:
         aqi_string = f' {aqi_string} | {str(point)}'
-    aqi_string = aqi_string[8:]
+    if len(aqi_string) > 0:
+        aqi_string = aqi_string[8:]
     pad = ' '
     table_data = [
         ['Polling', f'{polling_minutes:02d}:{polling_seconds:02d}'],
