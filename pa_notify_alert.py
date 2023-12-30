@@ -121,7 +121,7 @@ def status_update(sensor_name: str,
                   pm_aqi_roc: float,
                   regional_aqi_mean: float,
                   max_data_points: int,
-                  num_data_points: int) -> datetime:
+                  local_pm25_aqi_list: list[float]) -> datetime:
     """
     Prints a table of program status information.
 
@@ -136,7 +136,7 @@ def status_update(sensor_name: str,
         pm_aqi_roc (float): The PM 2.5 AQI rate of change.
         regional_aqi_mean (float): The regional AQI mean.
         max_data_points (int): The maximum number of data points.
-        num_data_points (int): The current number of data points.
+        local_pm25_aqi_list (list[float]): The current list of PM2.5 AQI data points.
 
     Returns:
         datetime: The current datetime.
@@ -150,11 +150,15 @@ def status_update(sensor_name: str,
     email_notification_minutes = int((constants.NOTIFICATION_INTERVAL - email_notification_et) / 60) % 60
     email_notification_seconds = int((constants.NOTIFICATION_INTERVAL - email_notification_et) % 60)
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
+    aqi_string = ''
+    for point in local_pm25_aqi_list:
+        aqi_string = f' {aqi_string} | {str(point)}'
+    aqi_string = aqi_string[8:]
     pad = ' '
     table_data = [
         ['Polling', f'{polling_minutes:02d}:{polling_seconds:02d}'],
         ['Text / Email Notification', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d} / {email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
-        ['Num / Max Data Points', f'{num_data_points} / {max_data_points}'],
+        ['Num / Max Data Points', f'{len(local_pm25_aqi_list)} / {max_data_points}'],
         [' ', ' '],
         ['Time Now', f'__Start__| {datetime.datetime.utcnow().strftime("%H:%M:%S")} |___End___'],
         ['Polling', f'{constants.POLLING_START_TIME} |{pad:^10}| {constants.POLLING_END_TIME}'],
@@ -163,6 +167,7 @@ def status_update(sensor_name: str,
         [' ', ' '],
         ['PM 2.5 AQI', f'{local_pm25_aqi:.0f}'],
         ['PM 2.5 AQI Average', f'{local_pm25_aqi_avg:.0f}'],
+        ['PM 2.5 AQI List', f'{aqi_string}']
         ['Regional AQI', f'{regional_aqi_mean:.0f}'],
         [f'{sensor_name} Sensor Confidence', f'{confidence}'],
         ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.5f}'],
@@ -827,7 +832,7 @@ def main() -> None:
             sleep(.1)
             polling_et, status_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, last_text_notification, last_email_notification)
             if status_et >= constants.STATUS_INTERVAL:
-                status_start = status_update(sensor_name, polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, len(local_pm25_aqi_list))
+                status_start = status_update(sensor_name, polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, local_pm25_aqi_list)
             if polling_criteria_met(polling_et) == (True, True):
                 sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
                 if local_pm25_aqi != 'ERROR':
