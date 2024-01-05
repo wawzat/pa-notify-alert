@@ -421,7 +421,7 @@ def aqi_rate_of_change(data_points: list[float]) -> float:
         y = array(data_points)
         # Calculate the slope of the best fit line
         slope, _ = polyfit(x, y, 1)
-        roc_per_hour = slope * 60
+    roc_per_hour = slope * 60
     return round(roc_per_hour, 5)
 
 
