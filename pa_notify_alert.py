@@ -417,12 +417,11 @@ def aqi_rate_of_change(data_points: list[float]) -> float:
     if len(data_points) < 2:
         slope = 0
     else:
-        x = arange(len(data_points)) * int(constants.POLLING_INTERVAL / 60)
+        x = arange(len(data_points)) * int(constants.POLLING_INTERVAL / 3660)
         y = array(data_points)
         # Calculate the slope of the best fit line
         slope, _ = polyfit(x, y, 1)
-    roc_per_hour = slope * 60
-    return round(roc_per_hour, 5)
+    return round(slope, 5)
 
 
 @retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
