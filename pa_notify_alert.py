@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20231127
+# James S. Lucas - 20240109
 
 import os
 import sys
@@ -171,7 +171,7 @@ def status_update(sensor_name: str,
         ['PM 2.5 AQI List', f'{aqi_string}'],
         ['Regional AQI', f'{regional_aqi_mean:.0f}'],
         [f'{sensor_name} Sensor Confidence', f'{confidence}'],
-        ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.5f}'],
+        ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.1f}'],
         ['Timestamp', f'{time_stamp}']
     ]
     print(tabulate(table_data, headers=['Description', 'Status'], tablefmt='orgtbl'))
