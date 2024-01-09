@@ -685,7 +685,7 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime, num_
     text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
     if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
-        text_criteria = text_criteria and num_data_points >= 4
+        text_criteria = text_criteria and num_data_points >= 16
     return text_criteria
 
 
@@ -706,7 +706,7 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
     email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
         datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
     if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
-        email_criteria = email_criteria and num_data_points >= 4
+        email_criteria = email_criteria and num_data_points >= 16
     return email_criteria
 
 
