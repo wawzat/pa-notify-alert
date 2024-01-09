@@ -412,7 +412,7 @@ def aqi_rate_of_change(data_points: list[float]) -> float:
         data_points (list): A list of AQI data points.
 
     Returns:
-        float: The rate of change of AQI in AQI / min rounded to 5 decimal places.
+        float: The rate of change of AQI in AQI / min rounded to 1 decimal place.
     """
     if len(data_points) < 2:
         slope = 0
@@ -421,7 +421,8 @@ def aqi_rate_of_change(data_points: list[float]) -> float:
         y = array(data_points)
         # Calculate the slope of the best fit line
         slope, _ = polyfit(x, y, 1)
-    return round(slope, 5)
+        slope_per_hour = slope * 60
+    return round(slope_per_hour, 1)
 
 
 @retry(max_attempts=6, delay=90, escalation=90, exception=(TwilioRestException))
