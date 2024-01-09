@@ -417,7 +417,7 @@ def aqi_rate_of_change(data_points: list[float]) -> float:
     if len(data_points) < 2:
         slope = 0
     else:
-        x = arange(len(data_points)) * int(constants.POLLING_INTERVAL / 3660)
+        x = arange(len(data_points)) * int(constants.POLLING_INTERVAL / 60)
         y = array(data_points)
         # Calculate the slope of the best fit line
         slope, _ = polyfit(x, y, 1)
