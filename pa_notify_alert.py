@@ -679,14 +679,17 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime, num_
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    # Adjust time values for PST if needed
-    if not is_pdt():
-        daily_text_notification += datetime.timedelta(hours=1)
-    utc_now = datetime.datetime.now(datetime.timezone.utc)
-    text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
-    if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
-        text_criteria = text_criteria and num_data_points >= 16
+    if constants.DAILY_TEXT_NOTICIATION:
+        # Adjust time values for PST if needed
+        if not is_pdt():
+            daily_text_notification += datetime.timedelta(hours=1)
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
+            datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+        if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
+            text_criteria = text_criteria and num_data_points >= 16
+    else:
+        text_criteria = False
     return text_criteria
 
 
@@ -700,14 +703,17 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    # Adjust time values for PST if needed
-    if not is_pdt():
-        daily_email_notification += datetime.timedelta(hours=1)
-    utc_now = datetime.datetime.now(datetime.timezone.utc)
-    email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
-    if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
-        email_criteria = email_criteria and num_data_points >= 16
+    if constants.DAILY_EMAIL_NOTICIATION:
+        # Adjust time values for PST if needed
+        if not is_pdt():
+            daily_email_notification += datetime.timedelta(hours=1)
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
+            datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+        if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
+            email_criteria = email_criteria and num_data_points >= 16
+    else:
+        email_criteria = False
     return email_criteria
 
 
