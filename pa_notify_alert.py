@@ -679,7 +679,7 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime, num_
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    if constants.DAILY_TEXT_NOTICIATION:
+    if constants.DAILY_TEXT_NOTIFICATION:
         # Adjust time values for PST if needed
         if not is_pdt():
             daily_text_notification += datetime.timedelta(hours=1)
@@ -703,7 +703,7 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
     Returns:
         bool: True if the criteria has been met, False otherwise.
     """
-    if constants.DAILY_EMAIL_NOTICIATION:
+    if constants.DAILY_EMAIL_NOTIFICATION:
         # Adjust time values for PST if needed
         if not is_pdt():
             daily_email_notification += datetime.timedelta(hours=1)
