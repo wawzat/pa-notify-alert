@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20240109
+# James S. Lucas - 20240118
 
 import os
 import sys
@@ -280,7 +280,7 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         sensor_id (int): The ID of the PurpleAir sensor to retrieve data from.
 
     Returns:
-        tuple: A tuple containing the sensor ID, sensor name, lat, lon, local AQI, confidence level, and timestamp of the data retrieval.
+        tuple: A tuple containing the sensor ID, sensor name, local AQI, confidence level, and timestamp of the data retrieval.
     """
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
@@ -298,8 +298,6 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         json_data = json.loads(url_data)
         sensor_data = json_data['sensor']
         sensor_name = config.get('purpleair', 'LOCAL_SENSOR_NAME').strip("'")
-        lat = config.get('purpleair', 'LOCAL_SENSOR_LAT').strip("'")
-        lon = config.get('purpleair', 'LOCAL_SENSOR_LON').strip("'")
         pm25_cf1_a = sensor_data['pm2.5_cf_1_a']
         pm25_cf1_b = sensor_data['pm2.5_cf_1_b']
         humidity = sensor_data['humidity']
@@ -321,7 +319,7 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         logger.exception(f'get_local_pa_data() response: {response}')
     time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
     time_stamp = datetime.datetime.now(time_zone)
-    return sensor_id, sensor_name, lat, lon, local_aqi, confidence, time_stamp
+    return sensor_id, sensor_name, local_aqi, confidence, time_stamp
 
 
 def get_regional_pa_data(bbox: list[float], local_aqi: float) -> pd.DataFrame:
@@ -432,8 +430,8 @@ def text_notify(is_daily: bool,
                 first_line: str,
                 sensor_id: int,
                 sensor_name: str,
-                lat: float,
-                lon: float,
+                lat: str,
+                lon: str,
                 text_list: list[str],
                 local_time_stamp: datetime,
                 local_pm25_aqi: float,
@@ -516,8 +514,8 @@ def email_notify(
     local_time_stamp: datetime,
     sensor_id: str,
     sensor_name: str,
-    lat: float,
-    lon: float,
+    lat: str,
+    lon: str,
     local_pm25_aqi: float,
     local_pm25_aqi_avg: float,
     local_pm25_aqi_avg_duration: int,
@@ -805,6 +803,8 @@ def initialize() -> tuple:
         - polling_start (datetime): The start time of the polling.
         - sensor_id (str): The ID of the PurpleAir sensor.
         - sensor_name (str): The name of the PurpleAir sensor.
+        - lat (str): The latitude of the PurpleAir sensor.
+        - lon (str): The longitude of the PurpleAir sensor.
         - local_pm25_aqi (float): The local PM2.5 AQI.
         - local_pm25_aqi_avg (float): The local PM2.5 AQI average.
         - confidence (str): The confidence level of the PurpleAir sensor.
@@ -832,7 +832,9 @@ def initialize() -> tuple:
     local_pm25_aqi_list: list[float] = []
     max_data_points: int = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp(constants.FILE_PATHS)
-    sensor_id, sensor_name, lat, lon, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
+    lat = config.get('purpleair', 'LOCAL_SENSOR_LAT').strip("'")
+    lon = config.get('purpleair', 'LOCAL_SENSOR_LON').strip("'")
+    sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
         sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, 
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
