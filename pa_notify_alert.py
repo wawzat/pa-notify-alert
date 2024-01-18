@@ -475,7 +475,7 @@ def text_notify(is_daily: bool,
                 f'\u00A0Neighborhood \n'
                 f'\u00A0\u00A0\u00A0Avg AQI: {regional_aqi_mean:.0f} \n'
                 f' {confidence_text} '
-                f'{constants.PA_MAP_TEXT_LINK} '
+                f'{config.get("purpleair", "PA_MAP_TEXT_LINK").strip("'")}'
     )
     message_sid_dict = {}
     for recipient in text_list:
@@ -565,7 +565,7 @@ def email_notify(
                 f'{rate_of_change_text} <br>'
                 f'{confidence_text}'
                 f'Neighborhood average PM 2.5 AQI: {regional_aqi_mean:.0f} <br>'
-                f'{constants.PA_MAP_EMAIL_LINK} <br><br>'
+                f'{config.get("purpleair", "PA_MAP_EMAIL_LINK").strip("'")} <br> <br>'
                 f'{constants.EMAIL_DISCLAIMER_PT1} <br> <br>'
                 f'{constants.EMAIL_DISCLAIMER_PT2} <br> <br>'
                 f'{constants.EMAIL_DISCLAIMER_PT3}'
