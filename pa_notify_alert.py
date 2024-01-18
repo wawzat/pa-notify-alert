@@ -280,7 +280,7 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         sensor_id (int): The ID of the PurpleAir sensor to retrieve data from.
 
     Returns:
-        tuple: A tuple containing the sensor ID, sensor name, local AQI, confidence level, and timestamp of the data retrieval.
+        tuple: A tuple containing the sensor ID, sensor name, lat, lon, local AQI, confidence level, and timestamp of the data retrieval.
     """
     root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
     params = {
@@ -298,6 +298,8 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         json_data = json.loads(url_data)
         sensor_data = json_data['sensor']
         sensor_name = config.get('purpleair', 'LOCAL_SENSOR_NAME').strip("'")
+        lat = config.get('purpleair', 'LOCAL_SENSOR_LAT').strip("'")
+        lon = config.get('purpleair', 'LOCAL_SENSOR_LON').strip("'")
         pm25_cf1_a = sensor_data['pm2.5_cf_1_a']
         pm25_cf1_b = sensor_data['pm2.5_cf_1_b']
         humidity = sensor_data['humidity']
@@ -319,7 +321,7 @@ def get_local_pa_data(sensor_id: int) -> tuple:
         logger.exception(f'get_local_pa_data() response: {response}')
     time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
     time_stamp = datetime.datetime.now(time_zone)
-    return sensor_id, sensor_name, local_aqi, confidence, time_stamp
+    return sensor_id, sensor_name, lat, lon, local_aqi, confidence, time_stamp
 
 
 def get_regional_pa_data(bbox: list[float], local_aqi: float) -> pd.DataFrame:
@@ -430,6 +432,8 @@ def text_notify(is_daily: bool,
                 first_line: str,
                 sensor_id: int,
                 sensor_name: str,
+                lat: float,
+                lon: float,
                 text_list: list[str],
                 local_time_stamp: datetime,
                 local_pm25_aqi: float,
@@ -475,7 +479,7 @@ def text_notify(is_daily: bool,
                 f'\u00A0Neighborhood \n'
                 f'\u00A0\u00A0\u00A0Avg AQI: {regional_aqi_mean:.0f} \n'
                 f' {confidence_text} '
-                f'{config.get("purpleair", "PA_MAP_TEXT_LINK").strip("'")}'
+                f'https://map.purpleair.com/1/i/mAQI/a0/p604800/cC5?select={sensor_id}#14.28/{lat}/{lon}'
     )
     message_sid_dict = {}
     for recipient in text_list:
@@ -512,6 +516,8 @@ def email_notify(
     local_time_stamp: datetime,
     sensor_id: str,
     sensor_name: str,
+    lat: float,
+    lon: float,
     local_pm25_aqi: float,
     local_pm25_aqi_avg: float,
     local_pm25_aqi_avg_duration: int,
@@ -565,6 +571,7 @@ def email_notify(
                 f'{rate_of_change_text} <br>'
                 f'{confidence_text}'
                 f'Neighborhood average PM 2.5 AQI: {regional_aqi_mean:.0f} <br>'
+                f'<a href="https://map.purpleair.com/1/i/mAQI/a0/p604800/cC5?select={sensor_id}#14.28/{lat}/{lon}">PurpleAir Map</a>'
                 f'{config.get("purpleair", "PA_MAP_EMAIL_LINK").strip("'")} <br> <br>'
                 f'{constants.EMAIL_DISCLAIMER_PT1} <br> <br>'
                 f'{constants.EMAIL_DISCLAIMER_PT2} <br> <br>'
@@ -826,15 +833,15 @@ def initialize() -> tuple:
     local_pm25_aqi_list: list[float] = []
     max_data_points: int = ceil(constants.READINGS_STORAGE_DURATION / (constants.POLLING_INTERVAL/60)) + 1
     last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = read_timestamp(constants.FILE_PATHS)
-    sensor_id, sensor_name, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
+    sensor_id, sensor_name, lat, lon, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
-        sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, 
+        sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, 
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
         last_email_notification, last_daily_text_notification, last_daily_email_notification)
 
 
 def main() -> None:
-    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
+    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
     while True:
         try:
             sleep(.1)
@@ -854,17 +861,17 @@ def main() -> None:
                 polling_start: datetime = datetime.datetime.now()
                 if notification_criteria_met(local_pm25_aqi, regional_aqi_mean, len(local_pm25_aqi_list), max_data_points):
                     if len(text_list) > 0 and text_notification_et >= constants.NOTIFICATION_INTERVAL:
-                        last_text_notification = text_notify(False, '', sensor_id, sensor_name, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                        last_text_notification = text_notify(False, '', sensor_id, sensor_name, lat, lon, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
-                        last_email_notification = email_notify(False, '', email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
+                        last_email_notification = email_notify(False, '', email_list, local_time_stamp, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
             if daily_text_notification_criteria_met(last_daily_text_notification, len(local_pm25_aqi_list)):
                 if len(admin_text_list) > 0:
-                    last_daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                    last_daily_text_notification = text_notify(True, 'Daily Notification \n', sensor_id, sensor_name, lat, lon, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
             if daily_email_notification_criteria_met(last_daily_email_notification, len(local_pm25_aqi_list)):
                 if len(email_list) > 0:
-                    last_daily_email_notification = email_notify(True, 'Daily Notification <br>', admin_email_list, local_time_stamp, sensor_id, sensor_name, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
+                    last_daily_email_notification = email_notify(True, 'Daily Notification <br>', admin_email_list, local_time_stamp, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
         except KeyboardInterrupt:
             sys.exit(0)
 
