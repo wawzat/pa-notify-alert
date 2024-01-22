@@ -1,6 +1,6 @@
 TEST_MODE = False
-DAILY_TEXT_NOTIFICATION = True
-DAILY_EMAIL_NOTIFICATION = True
+DAILY_TEXT_NOTIFICATION = False
+DAILY_EMAIL_NOTIFICATION = False
 
 #  0  |   1   |   2   |   3   |   4   |   5   |   6  |
 # Mon |  Tue  |  Wed  |  Thu  |  Fri  |  Sat  |  Sun |
