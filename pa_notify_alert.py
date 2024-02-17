@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Regularly polls Purpleair api for outdoor sensor data and sends notifications via text or email when air quality exceeds threshold.
-# James S. Lucas - 20240118
+# James S. Lucas - 20240205
 
 import os
 import sys
@@ -296,10 +296,10 @@ def get_local_pa_data(sensor_id: int) -> tuple:
     if response.ok:
         url_data = response.content
         json_data = json.loads(url_data)
-        sensor_data = json_data['sensor']
-        pm25_cf1_a = sensor_data['pm2.5_cf_1_a']
-        pm25_cf1_b = sensor_data['pm2.5_cf_1_b']
-        humidity = sensor_data['humidity']
+        sensor_data = json_data.get('sensor', 0.0)
+        pm25_cf1_a = sensor_data.get('pm2.5_cf_1_a', 0.0)
+        pm25_cf1_b = sensor_data.get('pm2.5_cf_1_b', 0.0)
+        humidity = sensor_data.get('humidity', 0.0)
         # Calculate sensor confidence
         pm_dif_pct = abs(pm25_cf1_a - pm25_cf1_b) / ((pm25_cf1_a + pm25_cf1_b + 1e-6) / 2)
         pm_dif_abs = abs(pm25_cf1_a - pm25_cf1_b)
@@ -313,7 +313,6 @@ def get_local_pa_data(sensor_id: int) -> tuple:
     else:
         local_aqi = 'ERROR'
         confidence = 'ERROR'
-        sensor_name = 'ERROR'
         logger.exception('get_local_pa_data() response not ok')
         logger.exception(f'get_local_pa_data() response: {response}')
     time_zone = pytz.timezone(constants.REPORTING_TIME_ZONE)
