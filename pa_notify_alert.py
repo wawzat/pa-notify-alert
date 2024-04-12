@@ -150,11 +150,11 @@ def status_update(sensor_name: str,
     email_notification_minutes = int((constants.NOTIFICATION_INTERVAL - email_notification_et) / 60) % 60
     email_notification_seconds = int((constants.NOTIFICATION_INTERVAL - email_notification_et) % 60)
     time_stamp = local_time_stamp.strftime('%m/%d/%Y %H:%M:%S')
-    aqi_string = ' '
-    for point in local_pm25_aqi_list:
-        aqi_string = f' {aqi_string} | {str(point)}'
-    if len(aqi_string) > 0:
-        aqi_string = aqi_string[9:]
+    #aqi_string = ' '
+    #for point in local_pm25_aqi_list:
+        #aqi_string = f' {aqi_string} | {str(point)}'
+    #if len(aqi_string) > 0:
+        #aqi_string = aqi_string[9:]
     pad = ' '
     table_data = [
         ['Polling', f'{polling_minutes:02d}:{polling_seconds:02d}'],
@@ -168,7 +168,7 @@ def status_update(sensor_name: str,
         [' ', ' '],
         ['PM 2.5 AQI', f'{local_pm25_aqi:.0f}'],
         ['PM 2.5 AQI Average', f'{local_pm25_aqi_avg:.0f}'],
-        ['PM 2.5 AQI List', f'{aqi_string}'],
+        #['PM 2.5 AQI List', f'{aqi_string}'],
         ['Regional AQI', f'{regional_aqi_mean:.0f}'],
         [f'{sensor_name} Sensor Confidence', f'{confidence}'],
         ['PM 2.5 AQI Rate of Change', f'{pm_aqi_roc:.1f}'],
