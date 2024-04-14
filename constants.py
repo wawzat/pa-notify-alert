@@ -4,7 +4,7 @@ DAILY_EMAIL_NOTIFICATION = True
 
 #  0  |   1   |   2   |   3   |   4   |   5   |   6  |
 # Mon |  Tue  |  Wed  |  Thu  |  Fri  |  Sat  |  Sun |
-MAX_DAY_OF_WEEK = 6
+MAX_DAY_OF_WEEK = 4
 
 REPORTING_TIME_ZONE = 'America/Los_Angeles'
 
@@ -15,7 +15,7 @@ POLLING_INTERVAL: int = 120
 NOTIFICATION_INTERVAL: int = 28800     # 8 hours
 
 # Duration in minutes
-READINGS_STORAGE_DURATION: int = 150    # For ROC and Average calculations
+READINGS_STORAGE_DURATION: int = 60    # For ROC and Average calculations
 
 # Times in UTC
 POLLING_START_TIME = '11:50:00'        # 4:50 AM PDT
