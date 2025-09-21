@@ -13,15 +13,19 @@ STATUS_INTERVAL: int = 1
 POLLING_INTERVAL: int = 120
 #POLLING_INTERVAL: int = 600
 NOTIFICATION_INTERVAL: int = 28800     # 8 hours
+OFFLINE_CHECK_ALARM_INTERVAL: int = 21600    # 6 hours
+OFFLINE_CHECK_POLLING_INTERVAL: int = 3600
 
 # Duration in minutes
 READINGS_STORAGE_DURATION: int = 60    # For ROC and Average calculations
 
 # Times in UTC
-POLLING_START_TIME = '11:50:00'        # 4:50 AM PDT
-POLLING_END_TIME = '23:00:00'          # 4:00 PM PDT
-#POLLING_START_TIME = '12:50:00'        # 5:50 AM PDT
-#POLLING_END_TIME = '23:59:00'          # 4:59 PM PDT
+POLLING_START_TIME = '11:50:00'               # 4:50 AM PDT
+POLLING_END_TIME = '23:00:00'                 # 4:00 PM PDT
+OFFLINE_CHECK_POLLING_START_TIME = '14:00:00' # 7:00 AM PDT
+OFFLINE_CHECK_POLLING_END_TIME = '23:59:59'   # 4:59 PM PDT
+#POLLING_START_TIME = '12:50:00'              # 5:50 AM PDT
+#POLLING_END_TIME = '23:59:00'                # 4:59 PM PDT
 
 PRE_OPEN_ALERT_START_TIME = '12:30:00' # 5:30 AM PDT
 #PRE_OPEN_ALERT_START_TIME = '13:30:00' # 6:30 AM PDT
@@ -48,6 +52,9 @@ EMAIL_DISCLAIMER_PT3 = 'The AQI provided in this notification is based on PM 2.5
             ' Other pollutants regulated by the Clean Air Act including ' \
             'ground-level ozone, carbon monoxide, sulfur dioxide, and nitrogen dioxide ' \
             'may also be present but are not included in this notification.'
+
+OFFLINE_SUBJECT = 'pa.notify.alert - PurpleAir Sensor Offline Alert'
+OFFLINE_EMAIL_BODY_INTRO = 'PurpleAir Sensor Offline Alert'
 
 
 FILE_PATHS = {'last_text_notification.txt':'',
