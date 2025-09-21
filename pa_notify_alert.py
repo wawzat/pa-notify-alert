@@ -260,6 +260,8 @@ def read_timestamp(file_paths: dict[str,str]) -> tuple:
         except ValueError:
             # fallback: try parsing without timezone
             loaded_datetime = datetime.datetime.fromisoformat(fixed_str[:-6])
+        # Ensure loaded_datetime is always timezone-aware (UTC)
+        if loaded_datetime.tzinfo is None:
             loaded_datetime = loaded_datetime.replace(tzinfo=datetime.timezone.utc)
         file_paths[file_path] = loaded_datetime
         file_paths[file_path] = loaded_datetime
