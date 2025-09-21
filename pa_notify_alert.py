@@ -161,7 +161,7 @@ def status_update(sensor_name: str,
         ['Text / Email Notification', f'{text_notification_hours:02d}:{text_notification_minutes:02d}:{text_notification_seconds:02d} / {email_notification_hours:02d}:{email_notification_minutes:02d}:{email_notification_seconds:02d}'],
         ['Num / Max Data Points', f'{len(local_pm25_aqi_list)} / {max_data_points}'],
         [' ', ' '],
-        ['Time Now', f'__Start__| {datetime.datetime.utcnow().strftime("%H:%M:%S")} |___End___'],
+        ['Time Now', f'__Start__| {datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S")} |___End___'],
         ['Polling', f'{constants.POLLING_START_TIME} |{pad:^10}| {constants.POLLING_END_TIME}'],
         ['Pre-Open Alert', f'{constants.PRE_OPEN_ALERT_START_TIME} |{pad:^10}| {constants.PRE_OPEN_ALERT_END_TIME}'],
         ['Open Alert', f'{constants.OPEN_ALERT_START_TIME} |{pad:^10}| {constants.OPEN_ALERT_END_TIME}'],
@@ -181,6 +181,7 @@ def status_update(sensor_name: str,
 
 def elapsed_time(polling_start: datetime,
                  status_start: datetime,
+                 offline_check_start: datetime,
                  last_text_notification: datetime,
                  last_email_notification: datetime) -> tuple:
     """
@@ -197,9 +198,10 @@ def elapsed_time(polling_start: datetime,
     """
     polling_et: int = (datetime.datetime.now() - polling_start).total_seconds()
     status_et: int = (datetime.datetime.now() - status_start).total_seconds()
+    offline_et: int = (datetime.datetime.now() - offline_check_start).total_seconds()
     text_notification_et: int = (datetime.datetime.now(datetime.timezone.utc) - last_text_notification).total_seconds()
     email_notification_et: int = (datetime.datetime.now(datetime.timezone.utc) - last_email_notification).total_seconds()
-    return polling_et, status_et, text_notification_et, email_notification_et
+    return polling_et, status_et, offline_et, text_notification_et, email_notification_et
 
 
 def write_timestamp(time_stamp: datetime, com_mode: str) -> None:
@@ -270,6 +272,39 @@ def is_pdt() -> bool:
         return True
     else:
         return False
+
+
+def get_local_last_seen(sensor_id: int) -> tuple:
+    """
+    Retrieves the last_seen time from a PurpleAir sensor with the given sensor ID.
+
+    Args:
+        sensor_id (int): The ID of the PurpleAir sensor to retrieve data from.
+
+    Returns:
+        tuple: A tuple containing the sensor ID and last_seen timestamp of the data retrieval.
+    """
+    root_url: str = 'https://api.purpleair.com/v1/sensors/{sensor_id}?fields={fields}'
+    params = {
+        'sensor_id': sensor_id,
+        'fields': "last_seen"
+    }
+    url: str = root_url.format(**params)
+    try:
+        response = session.get(url)
+    except requests.exceptions.RequestException as e:
+        logger.exception(f'get_local_pa_data() error: {e}')
+        return 0
+    if response.ok:
+        url_data = response.content
+        json_data = json.loads(url_data)
+        sensor_data = json_data.get('sensor', 0.0)
+        last_seen = sensor_data.get('last_seen', 0.0)
+    else:
+        last_seem = 'ERROR'
+        logger.exception('get_local_pa_data() response not ok')
+        logger.exception(f'get_local_pa_data() response: {response}')
+    return sensor_id, last_seen
 
 
 def get_local_pa_data(sensor_id: int) -> tuple:
@@ -496,7 +531,7 @@ def text_notify(is_daily: bool,
         log_text = f'{datetime.datetime.now(time_zone).strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - {status}'
         with open(os.path.join(os.getcwd(), '1_text_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
-    utc_now = datetime.datetime.utcnow()
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
     if is_daily:
         write_timestamp(utc_now, 'daily_text')
     else:
@@ -578,7 +613,7 @@ def email_notify(
         log_text = f'{datetime.datetime.now(time_zone).strftime("%Y-%m-%d %H:%M:%S")}: {recipient} - Sent'
         with open(os.path.join(os.getcwd(), '1_email_status_log.txt'), 'a') as f:
             f.write(log_text + '\n')
-    utc_now = datetime.datetime.utcnow()
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
     if is_daily:
         write_timestamp(utc_now, 'daily_email')
     else:
@@ -614,8 +649,40 @@ def polling_criteria_met(polling_et: int) -> bool:
         POLLING_END_TIME = polling_end_time.strftime('%H:%M:%S')
 
     return polling_et >= constants.POLLING_INTERVAL, \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= POLLING_START_TIME and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') <= POLLING_END_TIME
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') >= POLLING_START_TIME and \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') <= POLLING_END_TIME
+
+
+def offline_check_polling_criteria_met(offline_polling_et: int) -> bool:
+    """
+    Determines if the polling criteria has been met based on the current time and the polling interval.
+
+    Args:
+        polling_et (int): The elapsed time since the last poll.
+
+    Returns:
+        bool: True if the polling criteria has been met, False otherwise.
+    """
+    # Check if the day of the week is a weekday
+    if datetime.datetime.today().weekday() > constants.MAX_DAY_OF_WEEK:
+        return False
+
+    POLLING_START_TIME = constants.OFFLINE_CHECK_POLLING_START_TIME
+    POLLING_END_TIME = constants.OFFLINE_CHECK_POLLING_END_TIME
+
+    # Adjust time values for PST
+    if not is_pdt():
+        polling_start_time = datetime.datetime.strptime(POLLING_START_TIME, '%H:%M:%S')
+        polling_start_time -= datetime.timedelta(hours=1)
+        POLLING_START_TIME = polling_start_time.strftime('%H:%M:%S')
+
+        polling_end_time = datetime.datetime.strptime(POLLING_END_TIME, '%H:%M:%S')
+        polling_end_time -= datetime.timedelta(hours=1)
+        POLLING_END_TIME = polling_end_time.strftime('%H:%M:%S')
+
+    return offline_polling_et >= constants.OFFLINE_CHECK_POLLING_INTERVAL , \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') >= POLLING_START_TIME and \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') <= POLLING_END_TIME
 
 
 def notification_criteria_met(local_pm25_aqi: float,
@@ -660,13 +727,13 @@ def notification_criteria_met(local_pm25_aqi: float,
         OPEN_ALERT_END_TIME = open_alert_end_time.strftime('%H:%M:%S')
 
     pre_open_notification_criteria = (
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= PRE_OPEN_ALERT_START_TIME and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') <= PRE_OPEN_ALERT_END_TIME and \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') >= PRE_OPEN_ALERT_START_TIME and \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') <= PRE_OPEN_ALERT_END_TIME and \
         (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >= constants.PRE_OPEN_AQI_ALERT_THRESHOLD))
 
     open_notification_criteria = (
-        datetime.datetime.utcnow().strftime('%H:%M:%S') >= OPEN_ALERT_START_TIME and \
-        datetime.datetime.utcnow().strftime('%H:%M:%S') <= OPEN_ALERT_END_TIME and \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') >= OPEN_ALERT_START_TIME and \
+        datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') <= OPEN_ALERT_END_TIME and \
         (local_pm25_aqi >= constants.OPEN_AQI_ALERT_THRESHOLD  or regional_aqi_mean >= constants.OPEN_AQI_ALERT_THRESHOLD))
     return (pre_open_notification_criteria or open_notification_criteria) and num_data_points >= max_data_points 
 
@@ -687,7 +754,7 @@ def daily_text_notification_criteria_met(daily_text_notification: datetime, num_
             daily_text_notification += datetime.timedelta(hours=1)
         utc_now = datetime.datetime.now(datetime.timezone.utc)
         text_criteria = utc_now - daily_text_notification >= datetime.timedelta(hours=14) and \
-            datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+            datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
         if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
             text_criteria = text_criteria and num_data_points >= 16
     else:
@@ -711,12 +778,31 @@ def daily_email_notification_criteria_met(daily_email_notification: datetime, nu
             daily_email_notification += datetime.timedelta(hours=1)
         utc_now = datetime.datetime.now(datetime.timezone.utc)
         email_criteria = utc_now - daily_email_notification >= datetime.timedelta(hours=14) and \
-            datetime.datetime.utcnow().strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
+            datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S') >= (datetime.datetime.strptime(constants.PRE_OPEN_ALERT_START_TIME, '%H:%M:%S') - datetime.timedelta(seconds=30)).strftime('%H:%M:%S')
         if datetime.datetime.today().weekday() <= constants.MAX_DAY_OF_WEEK:
             email_criteria = email_criteria and num_data_points >= 16
     else:
         email_criteria = False
     return email_criteria
+
+
+def offline_check_notification_criteria_met(last_seen) -> bool:
+    """
+    Determines if the offline check criteria has been met based on the current time and day of the week.
+
+    Args:
+        none.
+
+    Returns:
+        bool: True if the criteria has been met, False otherwise.
+    """
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
+    last_seen_dt = datetime.datetime.fromtimestamp(last_seen, datetime.timezone.utc)
+    if utc_now - last_seen_dt >= datetime.timedelta(minutes=constants.OFFLINE_CHECK_ALARM_INTERVAL):
+        offline_check_criteria = True
+    else:
+        offline_check_criteria = False
+    return offline_check_criteria
 
 
 def com_lists() -> tuple:
@@ -822,7 +908,7 @@ def initialize() -> tuple:
     for key, coord in bbox_items:
         bbox.append(coord)
     email_list, text_list, admin_text_list, admin_email_list = com_lists()
-    status_start, polling_start =  datetime.datetime.now(), datetime.datetime.now()
+    status_start, polling_start, offline_check_start =  datetime.datetime.now(), datetime.datetime.now(), datetime.datetime.now()
     local_pm25_aqi_avg: float = 0
     local_pm25_aqi_avg_duration: int = 2
     pm_aqi_roc: float = 0
@@ -834,18 +920,19 @@ def initialize() -> tuple:
     lat = config.get('purpleair', 'LOCAL_SENSOR_LAT').strip("'")
     lon = config.get('purpleair', 'LOCAL_SENSOR_LON').strip("'")
     sensor_id, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
-    return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, 
+    sensor_id, last_seen = get_local_last_seen(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
+    return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, offline_check_start, 
         sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, 
         regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, 
-        last_email_notification, last_daily_text_notification, last_daily_email_notification)
+        last_email_notification, last_daily_text_notification, last_daily_email_notification, last_seen)
 
 
 def main() -> None:
-    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification = initialize()
+    bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, offline_check_start, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, regional_aqi_mean, local_pm25_aqi_list, max_data_points, last_text_notification, last_email_notification, last_daily_text_notification, last_daily_email_notification, last_seen = initialize()
     while True:
         try:
             sleep(.1)
-            polling_et, status_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, last_text_notification, last_email_notification)
+            polling_et, status_et, offline_check_et, text_notification_et, email_notification_et = elapsed_time(polling_start, status_start, offline_check_start, last_text_notification, last_email_notification)
             if status_et >= constants.STATUS_INTERVAL:
                 status_start = status_update(sensor_name, polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, local_pm25_aqi_list)
             if polling_criteria_met(polling_et) == (True, True):
@@ -864,6 +951,10 @@ def main() -> None:
                         last_text_notification = text_notify(False, '', sensor_id, sensor_name, lat, lon, text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
                     if len(email_list) > 0 and email_notification_et >= constants.NOTIFICATION_INTERVAL:
                         last_email_notification = email_notify(False, '', email_list, local_time_stamp, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
+                if offline_check_notification_criteria_met(last_seen):
+                    pass
+                    #text_notify(False, 'Offline Notification \n', sensor_id, sensor_name, lat, lon, admin_text_list, local_time_stamp, local_pm25_aqi, pm_aqi_roc, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, regional_aqi_mean)
+                    #email_notify(False, 'Offline Notification <br>', admin_email_list, local_time_stamp, sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, pm_aqi_roc, regional_aqi_mean)
             elif polling_criteria_met(polling_et) == (True, False):
                 local_pm25_aqi_list = []
             if daily_text_notification_criteria_met(last_daily_text_notification, len(local_pm25_aqi_list)):
