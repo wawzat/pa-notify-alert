@@ -251,7 +251,17 @@ def read_timestamp(file_paths: dict[str,str]) -> tuple:
                 current_datetime = (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S%z')
                 file.write(current_datetime)
             datetime_str = current_datetime
-        loaded_datetime = datetime.datetime.fromisoformat(datetime_str).replace(tzinfo=datetime.timezone.utc)
+        # Fix non-ISO format like '2025-09-21 21:26:52+0000' to ISO format
+        fixed_str = datetime_str.replace(' ', 'T', 1)
+        if fixed_str.endswith('+0000'):
+            fixed_str = fixed_str[:-5] + '+00:00'
+        try:
+            loaded_datetime = datetime.datetime.fromisoformat(fixed_str)
+        except ValueError:
+            # fallback: try parsing without timezone
+            loaded_datetime = datetime.datetime.fromisoformat(fixed_str[:-6])
+            loaded_datetime = loaded_datetime.replace(tzinfo=datetime.timezone.utc)
+        file_paths[file_path] = loaded_datetime
         file_paths[file_path] = loaded_datetime
     keys_order = ['last_text_notification.txt',
                   'last_email_notification.txt',
