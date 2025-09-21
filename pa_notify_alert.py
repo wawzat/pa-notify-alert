@@ -919,7 +919,7 @@ def initialize() -> tuple:
     sensor_name = config.get('purpleair', 'LOCAL_SENSOR_NAME').strip("'")
     lat = config.get('purpleair', 'LOCAL_SENSOR_LAT').strip("'")
     lon = config.get('purpleair', 'LOCAL_SENSOR_LON').strip("'")
-    sensor_id, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
+    sensor_id, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(int(config.get('purpleair', 'LOCAL_SENSOR_INDEX')))
     sensor_id, last_seen = get_local_last_seen(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
     return (bbox, email_list, text_list, admin_text_list, admin_email_list, status_start, polling_start, offline_check_start, 
         sensor_id, sensor_name, lat, lon, local_pm25_aqi, local_pm25_aqi_avg, local_pm25_aqi_avg_duration, confidence, local_time_stamp, pm_aqi_roc, 
@@ -936,7 +936,7 @@ def main() -> None:
             if status_et >= constants.STATUS_INTERVAL:
                 status_start = status_update(sensor_name, polling_et, text_notification_et, email_notification_et, local_time_stamp, local_pm25_aqi, local_pm25_aqi_avg, confidence, pm_aqi_roc, regional_aqi_mean, max_data_points, local_pm25_aqi_list)
             if polling_criteria_met(polling_et) == (True, True):
-                sensor_id, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(config.get('purpleair', 'LOCAL_SENSOR_INDEX'))
+                sensor_id, local_pm25_aqi, confidence, local_time_stamp = get_local_pa_data(int(config.get('purpleair', 'LOCAL_SENSOR_INDEX')))
                 if local_pm25_aqi != 'ERROR':
                     local_pm25_aqi_list.append(local_pm25_aqi)
                     # Keep only the last max_data_points data points
